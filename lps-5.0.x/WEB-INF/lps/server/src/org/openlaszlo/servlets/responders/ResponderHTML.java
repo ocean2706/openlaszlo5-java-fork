@@ -1,0 +1,94 @@
+/******************************************************************************
+ * ResponderHTML.java
+ * ****************************************************************************/
+
+/* J_LZ_COPYRIGHT_BEGIN *******************************************************
+* Copyright 2001-2004, 2011 Laszlo Systems, Inc.  All Rights Reserved.        *
+* Use is subject to license terms.                                            *
+* J_LZ_COPYRIGHT_END *********************************************************/
+
+package org.openlaszlo.servlets.responders;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Properties;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+import org.openlaszlo.compiler.Canvas;
+import org.openlaszlo.compiler.CompilationError;
+import org.openlaszlo.utils.FileUtils;
+import org.openlaszlo.utils.TransformUtils;
+
+public final class ResponderHTML extends ResponderCompile
+{
+    private static Logger mLogger = Logger.getLogger(ResponderHTML.class);
+
+    /**
+     * @param fileName Full pathname to file from request.
+     */
+    @Override
+    protected void respondImpl(String fileName, HttpServletRequest req, 
+                               HttpServletResponse res)
+        throws IOException
+    {
+        mLogger.info(
+/* (non-Javadoc)
+ * @i18n.test
+ * @org-mes="Responding with HTML wrapper for " + p[0]
+ */
+                        org.openlaszlo.i18n.LaszloMessages.getMessage(
+                                ResponderHTML.class.getName(),"051018-43", new Object[] {fileName})
+);
+        res.setContentType ("text/html");
+        ServletOutputStream out = res.getOutputStream();
+        try {
+            // Get the canvas first, so that if this fails and we
+            // write the compilation error, nothing has been written
+            // to out yet.
+            if (fileName.endsWith(".lzo")) {
+                fileName = fileName.substring(0, fileName.length() - 1) + "x";
+            }
+            Canvas canvas = getCanvas(fileName, req);
+            /* This method doesn't call writeHeader and writeFooter, since
+             * the stylesheet handles the whole HTML generation. */
+            //writeHeader(out, canvas);
+            writeCanvas(out, req, canvas, fileName);
+            //writeFooter(out);
+        } catch (CompilationError e) {
+            out.print("<pre>\n"+e.toHTML()+"\n<pre>");
+        } finally {
+            FileUtils.close(out);
+        }
+    }
+
+    /**
+     * Writes the canvas html.  The canvas is the area in which the
+     * Laszlo application is rendered.
+     * @param out <tt>ServletOutputStream</tt> to write on
+     * @param req request to retrieve scheme, server name, server port and
+     * requested url
+     * @param canvas the canvas for the given request
+     * @param fileName file for the app
+     */
+    private void writeCanvas (ServletOutputStream out, HttpServletRequest req, 
+                              Canvas canvas, String fileName)
+        throws IOException 
+    {
+        String styleSheetPathname =
+            org.openlaszlo.server.LPS.getTemplateDirectory() +
+            File.separator + "html-response.xslt";
+        String xmlString = canvas.getXML(ResponderAPP_CONSOLE.getRequestXML(req, fileName));
+        Properties properties = new Properties();
+        TransformUtils.applyTransform(styleSheetPathname, properties, xmlString, out);
+    }
+
+    @Override
+    public MIME_Type getMimeType()
+    {
+        return MIME_Type.HTML;
+    }
+}

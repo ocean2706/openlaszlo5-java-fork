@@ -1,0 +1,126 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<chapter id="editing-lzx">
+  <title>Editing</title>
+
+  <section>
+    <title>Overview</title>
+    <para>LZX source files are text files. Any standard text editor can be used to edit them.</para>
+
+    <section>
+      <title>XML Editors</title>
+      <para>LZX source files are XML files. An <emphasis>XML-aware editor</emphasis> such as <ulink
+          url="http://www.eclipse.org">Eclipse</ulink>, <ulink
+          url="http://www.barebones.com/products/bbedit/index.shtml"> BBEdit</ulink>, or <ulink
+          url="http://www.gnu.org/software/emacs/emacs.html"> Emacs</ulink>(with <literal>
+          <ulink url="http://www.lysator.liu.se/projects/about_psgml.html"> psgml-mode</ulink>
+        </literal>or <literal>
+          <ulink url="http://www.thaiopensource.com/download/"> nxml-mode</ulink>
+        </literal>) will provide additional editing facilities such as automatic indentation, syntax
+        highlighting (coloring markup characters such as <literal>&lt;</literal> and tag names
+        such as <literal>&lt;canvas&gt;</literal>), and well-formedness checking (letting
+        you know when you have an unbalanced <literal>&lt;</literal>or quotation mark).</para>
+      <para>To configure an XML-aware editor to edit LZX files, you must configure it to edit those
+        files in XML mode. This is done by registering the <literal>lzx</literal> extension with the
+        XML mode of the editor. How to do this depends on the exact editor; consult your editor
+        documentation for configuration details. Also see the <ulink
+          url="http://wiki.openlaszlo.org/Editing_LZX">OpenLaszlo Wiki</ulink> for instructions for
+        some popular editors.</para>
+    </section>
+  </section>
+  <section>
+    <title>XML Schema</title>
+    <para>An <literal>XML schema</literal> lists the tag and attribute names that can occur within
+      an XML document. Many XML editing tools are <literal>schema-aware</literal>. These tools can
+      associate an XML document with a schema file, and use the schema file for <emphasis>code
+        completion</emphasis> (to complete a tag or attribute name, or suggest a list of valid
+      attribute values) and <emphasis>validation</emphasis> (to indicate invalid tag or attribute
+      names within the editor, so that you don't have to wait until you compile the file).</para>
+    <para>The method for associating an XML document with a schema file depends on the editor;
+      consult your editor documentation for configuration details.</para>
+
+    <section>
+      <title>Types of Schema</title>
+      <para>There are three types of schemas in popular use: DTDs, XSD, and RNG (and its associated
+        format RNC). The LZX schema is distributed in each of these formats. They can be found in
+        the <literal>WEB-INF/lps/schema</literal> directory.</para>
+      <para>A Document Type Definition (DTD) is the oldest type, and is recognized by the most
+        editors. Unfortunately, the DTD format is very weak compared with the other schema
+        description languages, and can't indicate certain contextual information such as that a
+          <literal>&lt;dataset&gt;</literal> can contain arbitrary XML. A DTD should only be
+        used in an editor that doesn't support the other formats.</para>
+      <para>W3 and OASIS are standards bodies. The W3 standard for describing XML documents is the
+        XML Schema Definition (XSD). The OASIS standard is RELAXNG. RNG and RNC files are RELAXNG
+        files that contain schema definitions. RNG files are in XML; RNC files are intended to be
+        human-readable.</para>
+
+    </section>
+  </section>
+  <section>
+    <title>Namespaces and OpenLaszlo Schema</title>
+    <para>OpenLaszlo applications can be written with a namespace:</para>
+    <programlisting>&lt;canvas
+      xmlns="http://www.laszlosystems.com/2003/05/lzx"&gt;...&lt;/canvas&gt;</programlisting>
+    <para>or without:</para>
+    <programlisting>
+      &lt;canvas&gt;...&lt;/canvas&gt;</programlisting>
+    <para>If there is no namespace, the compiler defaults it to the LZX namespace ( <ulink
+        url="http://www.laszlosystems.com/2003/05/lzx">
+      http://www.laszlosystems.com/2003/05/lzx"</ulink>).</para>
+    <para>As of OpenLaszlo release 3.1, the schema in <literal>lax.rnc</literal> has three
+      deficiencies:</para>
+    <itemizedlist spacing="compact">
+      <listitem>
+        <para>It only works for sources that include the namespace declaration; for example it won't
+          validate <literal>&lt;canvas/&gt;</literal> because it doesn't declare any
+          elements in the empty namespace.</para>
+      </listitem>
+      <listitem>
+        <para>It only knows about the foundation classes, not the components; for example it won't
+          validate <literal>&lt;canvas
+            xmlns="..."&gt;&lt;button/&gt;&lt;/canvas&gt;</literal> because
+            <literal>&lt;button&gt;</literal> isn't a foundation class.</para>
+      </listitem>
+      <listitem>
+        <para>It isn't aware of tags that are defined in the application or its libraries; for
+          example <literal>&lt;canvas xmlns="..."&gt;&lt;class
+            name="myclass"/&gt;&lt;myclass/&gt;&lt;/canvas&gt;</literal></para>
+      </listitem>
+    </itemizedlist>
+    <para>The difficulty is that the <literal>&lt;class&gt;</literal> tag in LZX actually
+      extends the schema by adding new tags and attributes. We have a hand-written basic schema
+        (<literal>WEB-INF/lps/schema/lzx.rnc</literal>) which is used to start with, but then user
+      and system component libraries can extend the schema, depending on the application.</para>
+    <para><literal>&lt;window&gt;</literal>, for example, is defined in a source library in
+        <literal>lps/components/lz/window.lzx</literal>, so it is not in the base schema. So it is
+      difficult to use a static RNG schema, because it needs to be modified as the application
+      defines new classes.</para>
+    <para>The LZX compiler can be asked to give you the RNG schema from a source file, so something
+      might be able to be hooked up to keep regenerating the schema from the source file, although
+      it would be hard because the sources are often in an inconsistent state as you develop your
+      application, so the parser has to be very forgiving about badly formed XML.</para>
+    <para>We have worked around the first problem with a transform of that schema that strips out
+      the namespace declaration. That's <literal>tools/lzx+libraries-nons.rnc</literal>. We have
+      worked around the second problem with a script that makes a copy of the schema and adds the
+      components. This is <literal>tools/lzx+libraries.rnc</literal>. The third problem can't be
+      fixed without modifying <literal>nxml-mode</literal> to either add declarations for
+        <literal>&lt;class&gt;</literal> declarations that it sees, or request the schema
+      for an application from the compiler. (From the command line, the <literal>--schema</literal>
+      option does this.) OpenLaszlo does neither of these.</para>
+    <para>The LZX tag set is defined in a <literal>relax.ng</literal> schema located in the
+        <literal>lps/tools</literal>directory.</para>
+    <para>If you are going to use the schema,</para>
+    <itemizedlist spacing="compact">
+      <listitem>
+        <para>Use <literal>tools/lzx+libraries.rnc</literal> for files that include the XML
+          namespace declaration</para>
+      </listitem>
+      <listitem>
+        <para>Use <literal>tools/lzx+libraries-nons.rnc</literal> for files that don't include a
+          namespace declaration.</para>
+      </listitem>
+    </itemizedlist>
+
+  </section>
+
+</chapter>

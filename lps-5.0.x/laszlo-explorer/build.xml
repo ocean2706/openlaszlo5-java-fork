@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2001-2011 Laszlo Systems, Inc.  All Rights Reserved.              *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->
+
+
+<project name="laszlo-explorer" default="build" basedir=".">
+  <import file="../build-tools/build-opt.xml" />
+
+  <target name="clean">
+    <delete failonerror="false">
+      <fileset dir=".">
+        <include name="explore-nav.*" />
+        <exclude name="explore-nav.lzx" />
+      </fileset>
+    </delete>
+  </target>
+
+  <target name="init" depends="build-opt">
+    <!-- CLASSPATH for Laszlo compiler lzc -->
+    <path id="laszlo.compiler.classpath">
+      <fileset dir="${LPS_HOME}/3rd-party" includes="**/*.jar" />
+      <fileset dir="${LPS_HOME}/WEB-INF/lib" includes="**/*.jar" />
+    </path>
+
+    <available property="has_compiler.Main"
+               classname="org.openlaszlo.compiler.Main"
+               classpathref="laszlo.compiler.classpath" />
+  </target>
+
+  <target name="solo-compile-file" depends="init" description="Compile the file handed to this target">
+    <fail unless="has_compiler.Main" message="Can't find org.openlaszlo.compiler.Main in classpath." />
+    <echo message="Compiling ${file}"/>
+    <echo message="arg: ${args} ${file}"/>
+    <echo message="Using LPS_HOME: ${LPS_HOME}"/>
+    <java classpathref="laszlo.compiler.classpath" classname="org.openlaszlo.compiler.Main" fork="yes">
+      <sysproperty key="LPS_HOME" value="${LPS_HOME}" />
+      <jvmarg value="-Xmx1024M"/>
+      <arg line="${args} ${file}"/>
+    </java>
+  </target>
+
+  <target name="build" depends="init" description="Recompile the SOLO laszlo-explorer app">
+    <sequential>
+      <antcall target="solo-compile-file">
+        <param name="file" value="explore-nav.lzx" />
+        <param name="args" value="--runtime=swf10" />
+      </antcall>
+      <antcall target="solo-compile-file">
+        <param name="file" value="explore-nav.lzx" />
+        <param name="args" value="--runtime=dhtml" />
+      </antcall>
+    </sequential>
+  </target>
+</project>

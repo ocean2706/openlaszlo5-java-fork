@@ -1,0 +1,392 @@
+<?xml version="1.0"?>
+
+<!--  build.xml                                                             -->
+
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2001-2012 Laszlo Systems, Inc.  All Rights Reserved.              *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->
+
+<project name="lfc" default="build">
+  <description>
+    This is the build file for the LFC library.
+  </description>
+
+  <import file="../../../build-tools/build-opt.xml" />
+
+  <property environment="env" />
+
+  <!-- Local locations for public DTDs, so that the build doesn't
+       require web access -->
+  <xmlcatalog id="commonDTDs">
+    <dtd publicId="-//W3C//DTD XHTML 1.0 Transitional//EN"
+         location="dtds/xhtml1-transitional.dtd"/>
+  </xmlcatalog>
+
+  <target name="init" depends="build-opt">
+    <tstamp />
+
+    <condition property="java1.4">
+      <equals arg1="${ant.java.version}" arg2="1.4"/>
+    </condition>
+
+    <path id="lfctosc.classpath">
+      <fileset dir="${LPS_HOME}/3rd-party" includes="**/*.jar" />
+      <fileset dir="${LPS_HOME}/WEB-INF/lib" includes="**/*.jar" />
+    </path>
+
+    <available property="has_sc.Main"
+               classname="org.openlaszlo.sc.Main"
+               classpathref="lfctosc.classpath" />
+
+    <property file="${LPS_HOME}/build.properties" />
+    <property file="${LPS_HOME}/WEB-INF/lps/config/lps.properties" />
+    <property name="LFCdir" value="${LPS_HOME}/${compiler.runtime.dir}" />
+    <property name="lfc.src.dir" value="${LPS_HOME}/WEB-INF/lps/lfc" />
+    <property name="schema.dir" value="${LPS_HOME}/WEB-INF/lps/schema" />
+
+    <condition property="JAVA_DEBUG" value="" else="-ea">
+      <equals arg1="${build.debug}" arg2="off" />
+    </condition>
+
+    <condition property="JAVA_OPTS" value="${env.JAVA_OPTS}" else="">
+      <isset property="env.JAVA_OPTS" />
+    </condition>
+
+    <property name="server.dir" value="${LPS_HOME}/WEB-INF/lps/server" />
+
+    <property name="lfc.js2doc.dir" value="${lfc.src.dir}/docs"/>
+  
+    <property name="sc.dir"     value="${server.dir}/sc" />
+
+    <property name="env.FLEX_HOME"  value="" />
+
+    <!-- Whether the preloader is up to date -->
+    <uptodate property="preloader.uptodate" >
+      <srcfiles dir="." includes="**/*" excludes="*.lzl" />
+      <compositemapper>
+        <mergemapper to="${LFCdir}/lzpreloader.lzl" />
+      </compositemapper>
+    </uptodate>
+  </target>
+
+  <target name="lzl" description="Build a .lzl library from source" depends="init">
+    <fail unless="has_sc.Main" message="Can't find org.openlaszlo.sc.Main in classpath." />
+    <echo message="Compiling ${library}" />
+    <java classname="org.openlaszlo.sc.Main"
+          classpathref="lfctosc.classpath"
+          fork="true"
+          failonerror="true">
+      <sysproperty key="LPS_HOME" value="${LPS_HOME}" />
+      <jvmarg line="${JAVA_OPTS}" />
+      <arg line="${options}" />
+      <arg value="--runtime=${runtime}" />
+      <arg value="-o${library}" />
+      <arg value="--default=${source}" />
+    </java>
+  </target>
+
+  <target name="preloader"
+          depends="init"
+          unless="preloader.uptodate">
+    <ant target="lzl">
+      <property name="library" value="${LFCdir}/lzpreloader.lzl" />
+      <property name="runtime" value="swf8" />
+      <property name="source" value="lzpreloader.as" />
+      <property name="options" value="" />
+    </ant>
+  </target>
+
+  <target name="lfc" description="Build just one flavor of LFC"
+          depends="init">
+    <ant target="lzl">
+      <property name="library" value="${LFCdir}/${lfc.output}" />
+      <property name="runtime" value="${lfc.runtime}" />
+      <property name="source" value="${lfc.source}" />
+      <property name="options" value="${lfc.options}" />
+    </ant>     
+  </target>
+
+  <fileset id="lfc.depend.lzx" dir="." excludes="*.lzl" />
+  <fileset id="lfc.depend.scgrammar" dir="${sc.dir}" includes="**/*" />
+  <fileset id="lfc.depend.sc" dir="${LPS_HOME}/WEB-INF/lps/server/src/org/openlaszlo/sc" includes="**/*" />
+
+  <!-- We want to build the cross-product of [dhtml, swf7, swf8] with [ regular, debug, backtrace, profile ] -->
+  <target name="lfcs"
+          depends="init">
+
+    <!-- remove the LFC's if any source or the compiler is newer -->
+    <dependset>
+      <srcfileset dir="." includes="**/*" excludes="*.lzl" />
+      <srcfileset dir="${sc.dir}" includes="**/*" />
+      <srcfileset dir="${LPS_HOME}/WEB-INF/lps/server/src/org/openlaszlo/sc" includes="**/*" />
+      <targetfileset dir="${LFCdir}" includes="*.js,*.lzl,*.swc" excludes="lzpreloader.lzl"/>
+      <targetfileset dir="${schema.dir}" includes="lfc-new.lzx"/>
+    </dependset>
+
+    <script language="javascript">
+      <![CDATA[
+    var dobuild = function(libname, runtime, options) {
+      var myant = lfc.createTask("ant");
+      myant.setTarget("lzl");
+
+      var libprop = myant.createProperty();
+      libprop.setName("library");
+      libprop.setValue( libname );
+
+      var optionsprop = myant.createProperty();
+      optionsprop.setName("options");
+      optionsprop.setValue(options);
+
+      var runtimeprop = myant.createProperty();
+      runtimeprop.setName("runtime");
+      runtimeprop.setValue(runtime);
+
+      var sourceprop = myant.createProperty();
+      sourceprop.setName("source");
+      sourceprop.setValue("LaszloLibrary.lzs");
+
+      var excludesprop = myant.createProperty();
+      excludesprop.setName("excludes");
+
+      excludesprop.setValue("lzpreloader.as");
+      myant.setInheritAll(true);
+      myant.execute();
+    };
+
+    var buildPlain = lfc.getProperty("build.lfc.runtime.plain");
+    var buildDebug = lfc.getProperty("build.lfc.runtime.debug");
+    var buildProfile = lfc.getProperty("build.lfc.runtime.profile");
+    var buildBacktrace = lfc.getProperty("build.lfc.runtime.backtrace");
+    var LFCdir = lfc.getProperty("LFCdir") + '/';
+
+    importPackage(java.io);
+
+    var swfruntimes = [ 10, 9, 8 ];
+
+    // Build the strictest first, so we fail early
+    for (var i = 0, l = swfruntimes.length; i < l; i++) {
+      var v = swfruntimes[i];
+
+      var ext = (v >= 9) ? ".swc" : ".lzl";
+      var shlibopt = "--option buildSharedLibrary=true ";
+      if (v >= 9) {
+         shlibopt += "--option SWF9MainClassName=LFCApplication --option SWF9WrapperClassName=LzSpriteApplication --option catchFunctionExceptions=false ";
+      }
+
+      // Check whether the options tell us to build this runtime at all
+      var buildThisRuntime = lfc.getProperty("build.lfc.runtime.swf" + v);
+
+      if (buildThisRuntime != null && buildThisRuntime != "false") {
+        if (buildPlain) {
+          var plain = LFCdir + "LFC" + v + ext;
+          if (!(new File(plain)).exists()) {
+            dobuild(plain, "swf" + v, shlibopt);
+          }
+        }
+        if (buildDebug) {
+          var dest = LFCdir + "LFC" + v + "-debug" + ext;
+          if (!(new File(dest)).exists()) {
+            // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+            // warnings, the options can be changed to simply --debug
+            dobuild(dest,
+                    "swf" + v,
+                    shlibopt + "--option nameFunctions --option warnGlobalAssignments '-D$debug=true'");
+          }
+        }
+        if (buildBacktrace) {
+          var dest = LFCdir + "LFC" + v + "-backtrace" + ext;
+          if (!(new File(dest)).exists()) {
+            // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+            // warnings, the options can be changed to simply -g3
+            dobuild(dest,
+                    "swf" + v,
+                    shlibopt + "--option debugBacktrace --option nameFunctions --option warnGlobalAssignments '-D$debug=true'");
+          }
+        }
+        // TODO: [2008-01-11 dda] when ready, add extra builds for SWF9
+        if (buildProfile && (v < 9)) {
+          var profile = LFCdir + "LFC" + v + "-profile" + ext;
+          if (!(new File(profile)).exists()) {
+            dobuild(profile, "swf" + v, shlibopt + "--profile");
+          }
+        }
+      }
+    }
+
+
+    // build the dhtml lfc if we're supposed to
+    if (lfc.getProperty("build.lfc.runtime.dhtml")) {
+      if (buildPlain) {
+        var plain = LFCdir + "LFCdhtml.js";
+        if (!(new File(plain)).exists()) {
+          dobuild(plain, "dhtml", "");
+        }
+      }
+      if (buildDebug) {
+        var dest = LFCdir + "LFCdhtml-debug.js";
+        if (!(new File(dest)).exists()) {
+          // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+          // warnings, the options can be changed to simply --debug
+          dobuild(dest,
+                  "dhtml",
+                  "--option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+        }
+        if (buildBacktrace) {
+          var dest = LFCdir + "LFCdhtml-backtrace.js";
+          if (!(new File(dest)).exists()) {
+            // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+            // warnings, the options can be changed to simply -g3
+            dobuild(dest,
+                    "dhtml",
+                    "--option debugBacktrace --option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+          }
+        }
+      }
+      if (buildProfile) {
+        var profile = LFCdir + "LFCdhtml-profile.js";
+        if  (!(new File(profile)).exists()) {
+          dobuild(profile, "dhtml", "--profile");
+        }
+      }
+    }
+
+    // build the mobile lfc if we're supposed to
+    if (lfc.getProperty("build.lfc.runtime.mobile")) {
+      if (buildPlain) {
+        var plain = LFCdir + "LFCmobile.js";
+        if (!(new File(plain)).exists()) {
+          dobuild(plain, "mobile", "");
+        }
+      }
+      if (buildDebug) {
+        var dest = LFCdir + "LFCmobile-debug.js";
+        if (!(new File(dest)).exists()) {
+          // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+          // warnings, the options can be changed to simply --debug
+          dobuild(dest,
+                  "mobile",
+                  "--option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+        }
+        if (buildBacktrace) {
+          var dest = LFCdir + "LFCmobile-backtrace.js";
+          if (!(new File(dest)).exists()) {
+            // TODO: [2006-06-07 ptw] (LPP-2034) When the LFC is 'clean' of
+            // warnings, the options can be changed to simply -g3
+            dobuild(dest,
+                    "mobile",
+                    "--option debugBacktrace --option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+          }
+        }
+      }
+      if (buildProfile) {
+        var profile = LFCdir + "LFCmobile-profile.js";
+        if  (!(new File(profile)).exists()) {
+          dobuild(profile, "mobile", "--profile");
+        }
+      }
+    }
+
+    ]]> </script>
+    <ant dir="${schema.dir}"  target="lfc.schema" />
+
+  </target>
+
+  <target name="doc" />
+  
+  <target name="doc.clean" />
+
+  <target name="build" description="Build all the lfc versions requested in build.properties, unless they're already up to date"
+          depends="init,preloader,lfcs,doc">
+  </target>
+
+  <target name="clean" depends="init,doc.clean">
+    <delete failonerror="false">
+      <fileset dir="${LFCdir}" includes="*" excludes="defaultpreloader.swf" />
+    </delete>
+  </target>
+
+  <target name="all"
+          description="Clean, build, (no doc here)"
+          depends="clean,build" />
+
+  <target name="build-dhtml" description="Build the lfc version for dhtml only."
+          depends="init">
+    <!-- remove the LFC's if any source or the compiler is newer -->
+    <dependset>
+      <srcfileset dir="." includes="**/*" excludes="*.lzl" />
+      <srcfileset dir="${sc.dir}" includes="**/*" />
+      <srcfileset dir="${LPS_HOME}/WEB-INF/lps/server/src/org/openlaszlo/sc" includes="**/*" />
+      <targetfileset dir="${LFCdir}" includes="*.js,*.lzl" excludes="lzpreloader.lzl"/>
+      <targetfileset dir="${schema.dir}" includes="lfc-new.lzx"/>
+    </dependset>
+
+    <script language="javascript">
+      <![CDATA[
+      var dobuild = function(libname, runtime, options) {
+      var myant = lfc.createTask("ant");
+      myant.setTarget("lzl");
+
+      var libprop = myant.createProperty();
+      libprop.setName("library");
+      libprop.setValue( libname );
+
+      var optionsprop = myant.createProperty();
+      optionsprop.setName("options");
+      optionsprop.setValue(options);
+
+      var runtimeprop = myant.createProperty();
+      runtimeprop.setName("runtime");
+      runtimeprop.setValue(runtime);
+
+      var sourceprop = myant.createProperty();
+      sourceprop.setName("source");
+      sourceprop.setValue("LaszloLibrary.lzs");
+
+      var excludesprop = myant.createProperty();
+      excludesprop.setName("excludes");
+
+      excludesprop.setValue("lzpreloader.as");
+      myant.setInheritAll(true);
+      myant.execute();
+    };
+
+    var buildPlain = lfc.getProperty("build.lfc.runtime.plain");
+    var buildDebug = lfc.getProperty("build.lfc.runtime.debug");
+    var buildProfile = lfc.getProperty("build.lfc.runtime.profile");
+    var buildBacktrace = lfc.getProperty("build.lfc.runtime.backtrace");
+    var LFCdir = lfc.getProperty("LFCdir") + '/';
+
+    importPackage(java.io);
+
+    // build the dhtml lfc if we're supposed to
+    if (lfc.getProperty("build.lfc.runtime.dhtml")) {
+      if (buildPlain) {
+        var plain = LFCdir + "LFCdhtml.js";
+        if (!(new File(plain)).exists()) {
+          dobuild(plain, "dhtml", "");
+        }
+      }
+      if (buildDebug) {
+        var dest = LFCdir + "LFCdhtml-debug.js";
+        if (!(new File(dest)).exists()) {
+          dobuild(dest,
+                  "dhtml",
+                  "--option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+        }
+        if (buildBacktrace) {
+          var dest = LFCdir + "LFCdhtml-backtrace.js";
+          if (!(new File(dest)).exists()) {
+            dobuild(dest,
+                    "dhtml",
+                    "--option debugBacktrace --option nameFunctions --option disableTrackLines --option warnGlobalAssignments '-D$debug=true'");
+          }
+        }
+      }
+
+    }
+
+    ]]> </script>
+  </target>
+      
+</project>

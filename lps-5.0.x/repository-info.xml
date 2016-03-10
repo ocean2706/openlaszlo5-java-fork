@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<info>
+<entry
+   kind="dir"
+   path="/home/svnbuild/builds/20346-openlaszlo-trunk"
+   revision="20225">
+<url>http://svn.openlaszlo.org/openlaszlo/trunk</url>
+<repository>
+<root>http://svn.openlaszlo.org</root>
+<uuid>fa20e4f9-1d0a-0410-b5f3-dc9c16b8b17c</uuid>
+</repository>
+<wc-info>
+<schedule>normal</schedule>
+<depth>infinity</depth>
+</wc-info>
+<commit
+   revision="20225">
+<author>gliu</author>
+<date>2013-11-26T08:49:25.345238Z</date>
+</commit>
+</entry>
+</info>

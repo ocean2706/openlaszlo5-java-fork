@@ -1,0 +1,240 @@
+/* *****************************************************************************
+ * FileResolver.java
+* ****************************************************************************/
+
+/* J_LZ_COPYRIGHT_BEGIN *******************************************************
+* Copyright 2001-2008, 2010-2011 Laszlo Systems, Inc.  All Rights Reserved.   *
+* Use is subject to license terms.                                            *
+* J_LZ_COPYRIGHT_END *********************************************************/
+
+package org.openlaszlo.compiler;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.openlaszlo.server.LPS;
+import org.openlaszlo.utils.FileUtils;
+import org.openlaszlo.utils.LZUtils;
+
+/**
+ * Provides an interface for resolving a pathname to a File.  The
+ * Compiler class uses this to resolve includes (hrefs).
+ *
+ * @author Oliver Steele
+ */
+public interface FileResolver {
+    /** An instance of the DefaultFileResolver */
+    FileResolver DEFAULT_FILE_RESOLVER = new DefaultFileResolver();
+
+    /** Given a pathname, return the File that it names.
+     * @param pathname a path to resolve
+     * @param base a relative URI against which to resolve it
+     * @param asLibrary whether this URI is to a library or not
+     * @return see doc
+     * @exception java.io.FileNotFoundException if an error occurs
+     */
+    File resolve(String pathname, String base, boolean asLibrary)
+        throws java.io.FileNotFoundException;
+
+    File resolve(CompilationEnvironment env, String pathname, String base, boolean asLibrary)
+        throws java.io.FileNotFoundException;
+
+    /**
+     * The Set of Files that represents the includes that have been
+     * implicitly included by binary libraries.  This is updated by
+     * the library compiler and used to resolve paths that may not
+     * exist in the binary distribution.
+     */
+    Set<File> getBinaryIncludes();
+}
+
+/** DefaultFileResolver maps each pathname onto the File that
+ * it names, without doing any directory resolution or other
+ * magic.  (The operating system's notion of a working directory
+ * supplies the context for partial pathnames.)
+ */
+class DefaultFileResolver implements FileResolver {
+    private static Logger mLogger = Logger.getLogger(FileResolver.class);
+    
+    public Set<File> binaryIncludes = new HashSet<File>();
+
+    public Set<File> getBinaryIncludes() { return binaryIncludes; }
+
+    public DefaultFileResolver() {
+    }
+
+    public File resolve(String pathname, String base, boolean asLibrary)
+        throws java.io.FileNotFoundException {
+        return resolve(null, pathname, base, asLibrary);
+    }
+
+    /** @see FileResolver */
+    public File resolve(CompilationEnvironment env, String pathname, String base, boolean asLibrary)
+        throws java.io.FileNotFoundException {
+        if (asLibrary) {
+            boolean linking = env.linking;
+            // If it is a library, search for .lzo's, consider the
+            // path may be just to the directory of the library
+            File library = null;
+            if (pathname.endsWith(".lzx")) {
+                library = resolveInternal(env, pathname.substring(0, pathname.length()-4) +".lzo", base);
+                if (library != null) {
+                    if (linking || env.isExternal(library)) {
+                        return library;
+                    } else {
+                        env.warn("Ignoring inner LZO " + library + ".  Using source instead.");
+                    }
+                }
+            }
+            // Try pathname as a directory
+            else {
+                library = resolveInternal(env, (new File(pathname, "library.lzo").getPath()), base);
+                if (library != null) {
+                    if (linking || env.isExternal(library)) {
+                        return library;
+                    } else {
+                        env.warn("Ignoring inner LZO " + library + ".  Using source instead.");
+                    }
+                }
+                library = resolveInternal(env, (new File(pathname, "library.lzx").getPath()), base);
+                if (library != null) {
+                  return library;
+                }
+            }
+        }
+        // Last resort for a library, normal case for plain files
+        File resolved = resolveInternal(env, pathname, base);
+        if (resolved != null) {
+            return resolved;
+        }
+        throw new java.io.FileNotFoundException(pathname);
+    }
+
+    protected File resolveInternal(CompilationEnvironment env, String pathname, String base) {
+        final String FILE_PROTOCOL = "file";
+        String protocol = FILE_PROTOCOL;
+
+        // The >1 test allows file pathnames to start with DOS
+        // drive letters.
+        int pos = pathname.indexOf(':');
+        if (pos > 1) {
+            protocol = pathname.substring(0, pos);
+            pathname = pathname.substring(pos + 1);
+        }
+        if (!FILE_PROTOCOL.equals(protocol)) {
+            throw new CompilationError(
+/* (non-Javadoc)
+ * @i18n.test
+ * @org-mes="unknown protocol: " + p[0]
+ */
+                        org.openlaszlo.i18n.LaszloMessages.getMessage(
+                                FileResolver.class.getName(),"051018-77", new Object[] {protocol})
+);
+        }
+
+        // Determine whether to substitue resource files initially just swf to png
+        String pnext = FileUtils.getExtension(pathname);
+        boolean dhtmlResourceFlag = false;
+        
+        if (env != null) {
+            if (env.linking) {
+                dhtmlResourceFlag = env.isDHTML();
+            }
+        }
+
+        boolean SWFtoPNG = dhtmlResourceFlag && LZUtils.equalsIgnoreCase(pnext, "swf");
+        if (SWFtoPNG) {
+            String pnbase = FileUtils.getBase(pathname);
+            pathname = pnbase + ".png";
+        }
+
+        // NOTE: [2010-07-02 ptw] The directories that are searched
+        // for resolving must agree with the directories that are
+        // "unsearched" by IntermediateWriter.adjustRelativePath
+        // FIXME: [ebloch] this vector should be in a properties file
+        List<String> v = new ArrayList<String>();
+        if (pathname.startsWith("/")) {
+            // Try absolute
+            v.add("");
+            v.add(LPS.getComponentsDirectory());
+        }
+        v.add(base);
+        if (SWFtoPNG) {
+            String toAdd = FileUtils.insertSubdir(base + "/", "autoPng");
+            // if (mLogger.isTraceEnabled()) {
+            // mLogger.trace("Default File Resolver Adding " + toAdd + '\n');
+            // }
+            v.add(toAdd);
+        }
+        if (!pathname.startsWith("./") && !pathname.startsWith("../")) {
+            v.add(LPS.getComponentsDirectory());
+            v.add(LPS.getFontDirectory());
+            v.add(LPS.getLFCDirectory());
+        }
+
+        for (String dir : v) {
+            try {
+                boolean found = false;
+                File f = new File(dir, pathname);
+                if (f.exists()) {
+                    f = f.getCanonicalFile();
+                    found = true;
+                } else if (binaryIncludes != null && ! binaryIncludes.isEmpty()) {
+                    f = f.getCanonicalFile();
+                    if (binaryIncludes.contains(f)) {
+                        found = true;
+                    }
+                }
+                if (found) {
+                    // if (mLogger.isTraceEnabled()) {
+                    // mLogger.trace("Resolved " + pathname + " to " +
+                    // f.getAbsolutePath());
+                    // }
+                    if (env != null && f.getAbsolutePath().endsWith(".lzo")) {
+                        // Only add this to the list of lzo's to link
+                        // against if there is a runtime-specific object
+                        // file in the zipfile, and it matches the main
+                        // compilation debug/backtrace/profile options.
+                        // Otherwise, the script code will be compiled
+                        // from the platform-independent <script> block in
+                        // the lzo's XML entry.
+                        if (ObjectWriter.lzoFileContainsMatchingTargetRuntime(f, env)) {
+                            env.addLZOFile(f);
+                        }
+                    }
+                    return f;
+                } else if (SWFtoPNG) {
+                    String autoPngPath = FileUtils.insertSubdir(f.getPath(), "autoPng");
+                    if (mLogger.isTraceEnabled()) {
+                        mLogger.trace("Default File Resolver Looking for "
+                            + autoPngPath + '\n');
+                    }
+                    File autoPngFile = new File(autoPngPath);
+                    if (autoPngFile.exists()) {
+                        if (mLogger.isTraceEnabled()) {
+                            mLogger
+                                .trace("Default File Resolver " + pathname
+                                    + " to " + autoPngFile.getAbsolutePath()
+                                    + '\n');
+                        }
+                        return autoPngFile.getCanonicalFile();
+                    } else {
+                        File[] pathArray = FileUtils.matchPlusSuffix(autoPngFile);
+                        if (pathArray != null && pathArray.length != 0) {
+                            return autoPngFile.getCanonicalFile();
+                        }
+                    }
+                }
+            } catch (java.io.IOException ex) {
+              // Not a valid file?
+            }
+        }
+        return null;
+    }
+}
+
+

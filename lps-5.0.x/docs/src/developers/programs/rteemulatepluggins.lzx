@@ -1,0 +1,20 @@
+<canvas width="100%" height="450">
+  <include href="extensions/rte.lzx"/>
+  <rte width="600" height="400">Initial contents of the component. 
+    <method name="rte_togglestyles"
+      args="ignore">
+      <![CDATA[
+            this.execCommand ('bold');
+            this.execCommand ('italic');
+            this.execCommand ('underline');
+            ]]>
+    </method>
+    <handler name="oneditorready"> this.addButton ({value:'Toggle Styles'}, new LzDelegate(this,
+      'rte_togglestyles')); 
+    </handler>
+  </rte>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+  * Copyright 2010 Laszlo Systems, Inc.  All Rights Reserved.                   *
+  * Use is subject to license terms.                                            *
+  * X_LZ_COPYRIGHT_END ****************************************************** -->

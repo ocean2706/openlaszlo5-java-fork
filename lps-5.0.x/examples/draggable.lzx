@@ -1,0 +1,69 @@
+<canvas>
+    <class name="drag" extends="text" with="draggable" text="${this.destinationtypes}" bgcolor="red" opacity="${this.dragging ? .5 : 1}" transition="opacity .5s">
+        <handler name="ondragging" args="view:lz.view">
+            Debug.info('ondragging draggable', view);
+        </handler>
+        <handler name="ondragover" args="view:lz.view">
+            Debug.info('ondragover draggable', view);
+        </handler>
+        <handler name="ondrop" args="view:lz.view">
+            Debug.info('ondrop draggable', view);
+        </handler>
+    </class>
+    <class name="specificDrag" extends="drag"/>
+
+    <text name="draginstance" with="draggable" text="${this.destinationtypes}" bgcolor="red" opacity="${this.dragging ? .5 : 1}" transition="opacity .5s">
+        <handler name="ondragging" args="view:lz.view">
+            Debug.info('ondragging draggable', view);
+        </handler>
+        <handler name="ondragover" args="view:lz.view">
+            Debug.info('ondragover draggable', view);
+        </handler>
+        <handler name="ondrop" args="view:lz.view">
+            Debug.info('ondrop draggable', view);
+        </handler>
+    </text>
+    <drag y="100" destinationtypes="droptarget"/>
+    <drag y="200" destinationtypes="specificDrop,verySpecificDrop"/>
+    <drag y="300" destinationtypes="verySpecificDrop"/>
+    <specificDrag y="400"/>
+    <drag y="500" destinationtypes="no match"/>
+
+    <class name="droptarget" extends="text" with="droppable" text="${this.sourcetypes}" bgcolor="${this.dragging ? 'yellow' : 'orange'}" opacity="${this.dragover ? .5 : 1}" transition="opacity .5s">
+        <handler name="ondragging" args="view:lz.view">
+            Debug.debug('ondragging droppable', view);
+        </handler>
+        <handler name="ondragover" args="view:lz.view">
+            Debug.debug('ondragover droppable', view);
+        </handler>
+        <handler name="ondrop" args="view:lz.view">
+            Debug.debug('ondrop droppable', view);
+        </handler>
+    </class>
+    <class name="specificDrop" extends="droptarget"/>
+    <class name="verySpecificDrop" extends="droptarget"/>
+
+    <view x="300">
+        <text name="dropinstance" with="droppable" text="${this.sourcetypes}" bgcolor="${this.dragging ? 'yellow' : 'orange'}" opacity="${this.dragover ? .5 : 1}" transition="opacity .5s">
+            <handler name="ondragging" args="view:lz.view">
+                Debug.debug('ondragging droppable', view);
+            </handler>
+            <handler name="ondragover" args="view:lz.view">
+                Debug.debug('ondragover droppable', view);
+            </handler>
+            <handler name="ondrop" args="view:lz.view">
+                Debug.debug('ondrop droppable', view);
+            </handler>
+        </text>
+        <droptarget y="100"/>
+        <specificDrop y="200"/>
+        <verySpecificDrop y="300"/>
+        <droptarget y="400" sourcetypes="specificDrag"/>
+        <droptarget y="500" sourcetypes="no match"/>
+    </view>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2010 Laszlo Systems, Inc.  All Rights Reserved.                   *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->
+<!-- @LZX_VERSION@                                                         -->

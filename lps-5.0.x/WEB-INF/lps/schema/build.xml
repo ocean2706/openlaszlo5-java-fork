@@ -1,0 +1,124 @@
+<project name="schema" default="build">
+
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2001-2008, 2010, 2011 Laszlo Systems, Inc.  All Rights Reserved.              *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->
+
+  <description>
+      This is the build file for the LPS schema.
+      It currently does not try to build the docs. [bshine 5.24.06]
+  </description>
+
+  <property environment="env"/>
+
+  <target name="init">
+    <tstamp/>
+    <property name="build" value="./build"/>
+    <property name="schema.dir" value="${env.LPS_HOME}/WEB-INF/lps/schema"/>
+    <property name="build.dir" value="${schema.dir}/build"/>
+    <property name="rnc" value="lzx.rnc"/>
+    <property name="docrng" value="lzxdoc.rng"/>
+    <property name="rng" value="lzx.rng"/>
+    <property name="xsd" value="lzx.xsd"/>
+    <property name="lfc.schema.file" value="lfc.lzx"/>
+    <property name="lfc.undeclared.schema.file" value="lfc-undeclared.lzx"/>
+    <property name="html" value="lzx-reference.html"/>
+    <property name="server.dir" value="${env.LPS_HOME}/WEB-INF/lps/server" />
+    <property name="lfc.src.dir" value="${env.LPS_HOME}/WEB-INF/lps/lfc" />
+    <property name="js2doc.src.dir" value="${env.LPS_HOME}/WEB-INF/lps/server/src/org/openlaszlo/js2doc/" />
+    <property name="TRANG_JAR"      value="${LZ_VENDOR_ROOT}/trang.jar"/>
+
+    <echo message=" LPS_HOME: ${env.LPS_HOME}" />
+    <echo message=" schma.dir: ${schema.dir}" />
+    <mkdir dir="build"/>
+    <condition property="schemas.uptodate">
+        <and>
+            <uptodate property="rng.uptodate" targetfile="build/lzx.direct.rng">
+                <srcfiles dir=".">
+                    <include name="strip-docs.xsl,strip-private.xsl"/>
+                    <include name="lzx.rnc"/>
+                </srcfiles>
+            </uptodate>
+            <uptodate property="xsd.uptodate" value="false" srcfile="${rnc}" targetfile="${xsd}"/>
+        </and>
+    </condition>
+</target>
+
+  <target name="rng" depends="init"
+        unless="schemas.uptodate"
+          description="Generate RNG schema file">
+      <sequential>
+        <java classname="com.thaiopensource.relaxng.translate.Driver"
+              fork="true">
+          <arg value="${rnc}"/>
+          <arg value="build/lzx.direct.rng"/>
+        <classpath>
+          <pathelement path="${TRANG_JAR}" />
+        </classpath>
+        </java>
+      </sequential>
+
+    <xslt in="build/lzx.direct.rng" out="${rng}" style="strip-docs.xsl"/>
+    <xslt in="build/lzx.direct.rng" out="${docrng}" style="strip-private.xsl"/>
+  </target>
+
+  <target name="clean" 
+          description="Remove generated schema files" depends="init">
+    <delete dir="${build}"/>
+    <delete file="${docrng}"/>
+    <delete file="${rng}"/>
+    <delete file="${xsd}"/>
+    <delete file="${dtd}"/>
+    <delete file="${lfc.schema.file}"/>
+    <delete quiet="true">
+      <fileset dir="." defaultexcludes="no" includes="**/*~"/>
+      <fileset dir="." defaultexcludes="no" includes="**/*.pyc"/>
+    </delete>
+  </target>
+
+  <target name="lfc.schema.uptodate" depends="init">
+    <condition property="uptodate">
+      <uptodate property="lfc.schema.uptodate" targetfile="${lfc.schema.file}">
+        <srcfiles dir="${lfc.src.dir}" includes="**/*" />
+        <srcfiles dir="${js2doc.src.dir}" includes="**/*" />
+        <srcfiles file="${lfc.undeclared.schema.file}"/>
+      </uptodate>
+    </condition>
+  </target>
+
+  <!-- The lfc.schema target is called from lfc/build.xml -->
+  <target name="lfc.schema" description="build the lfc.lzx schema description"
+          depends="lfc.schema.uptodate" unless="uptodate">
+    <property name="js2doc.args" value="--schema --merge ${schema.dir}/${lfc.undeclared.schema.file} --out ${build.dir}/lfc.xml --dir ${build.dir} ${lfc.src.dir}/LaszloLibrary.lzs" />
+    <ant dir="${server.dir}" target="js2doc.schema" />
+    <copy file="${build.dir}/lfc.xml" tofile="${lfc.schema.file}"/>
+
+  </target>
+
+  <target name="build" 
+          description="Build generated schema files" depends="rng"
+          unless="schemas.uptodate"> <!-- don't build dtd unless it is explicitly requested -->
+          <java classname="com.thaiopensource.relaxng.translate.Driver"
+              fork="true" failonerror="true"
+              output="log.trang">
+            <classpath>
+              <pathelement path="${TRANG_JAR}" />
+            </classpath>
+            <arg value="${rnc}"/>
+            <arg value="${xsd}"/>
+          </java>
+          <delete file="log.trang"/>
+  </target>
+
+  <target name="doc"
+          description="Generate docs (none)"/>
+
+  <target name="test"
+          description="Run schema related tests (none)"/>
+
+  <target name="all" 
+          description="Clean, build, NO doc, and test" 
+          depends="clean,build,test"/>
+          
+</project>

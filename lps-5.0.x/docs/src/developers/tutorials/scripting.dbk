@@ -1,0 +1,397 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<chapter id="scripting-tutorial">
+   <?dbhtml dir="tutorials" ?>
+
+   <title>Introduction to Scripting</title>
+
+   <para/>
+   <section>
+      <title>Introduction</title>
+      <para>LZX applications can include procedural code, (see <xref
+            linkend="language-preliminaries"/>) as well as declarative XML tags. </para>
+      <para> Within an LZX program, script can appear</para>
+      <itemizedlist spacing="compact">
+         <listitem>
+            <para>between <literal>&lt;script&gt;</literal> tags</para>
+         </listitem>
+         <listitem>
+            <para>between <literal>&lt;method&gt;</literal> tags</para>
+         </listitem>
+         <listitem>
+            <para>between <literal>&lt;handler&gt;</literal> tags</para>
+         </listitem>
+         <listitem>
+            <para>between quotation marks as an assigned value for an attribute</para>
+         </listitem>
+      </itemizedlist>
+
+      <para/>
+   </section>
+   <section>
+      <title>The &lt;script&gt; Tag</title>
+
+      <para>The quickest way to get a script running is to put it in
+         <literal>&lt;script&gt;</literal> tags. Code in script tags is executed
+         immediately. <literal>&lt;script&gt;</literal> tags are only embeddable in the
+            <literal>&lt;canvas&gt;</literal>. </para>
+
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$1.lzx"/></textobject> 
+   </programlisting>
+
+
+      <para>We can now use our knowledge of JavaScript to build on this foundation:</para>
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$2.lzx"/></textobject> 
+   </programlisting>
+
+      <para/>
+      <section>
+         <title>JavaScript Gotchas</title>
+         <para> If you've never worked with JavaScript before, you may be surprised by some subtle
+            features of the language. For example, consider this slight expansion of the preceding
+            program:</para>
+
+
+         <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$3.lzx"/></textobject> 
+   </programlisting>
+
+
+         <para>Everything there is fine, except the "<literal>badtext.setAttribute( … );</literal>"
+            line. Four plus three should be 7, as in the line immediately above it, right? What
+            happened is that we concatenated numbers to strings (<literal>(..." is " + first +
+               second)</literal>). The next line shows one way to fix this problem. The line after
+            that shows a better way.</para>
+
+
+
+      </section>
+   </section>
+   <section id="xmlinscript">
+      <title>XML Characters in Script</title>
+
+      <para>LZX programs are well-formed XML files. That means that all portions of the program,
+         including embedded JavaScript, must conform to XML rules. Therefore where JavaScript uses
+         characters that are meaningful to XML, such as the left angle bracket
+         <literal>&lt;</literal>, you must make sure that those characters don't confuse the XML
+         parser.</para>
+      <section id="amplt">
+         <title>Using <literal>&lt;</literal> and <literal>&amp;</literal> in Script</title>
+         <para>XML has two <emphasis>reserved</emphasis> characters <literal>&lt;</literal> and
+               <literal>&amp;</literal> which introduce, respectively, tags and entities. When
+            you need to use either of these characters as data, rather than their reserved program
+            usage, you must <emphasis>escape</emphasis> them by writing them as the entities
+               <literal>&amp;lt;</literal> and <literal>&amp;amp;</literal>. (Some
+            syntax-directed editors will work better if you also escape <literal>&gt;</literal>
+            by writing <literal>&amp;gt;</literal>, but that is not required by XML.)</para>
+
+         <para>The bodies of, for example <literal>&lt;method&gt;</literal>,
+               <literal>&lt;setter&gt;</literal>, <literal>&lt;handler&gt;</literal>
+            and the values of tag properties (for example,
+            <literal>&lt;attribute&gt;</literal>'s <literal>name</literal>,
+            <literal>type</literal>, <literal>value</literal> properties, etc.), are interpreted as
+            Javascript by the compiler, but they must still be valid XML text. The most common error
+            is to say something like:</para>
+
+         <programlisting> &lt;method name=&quot;...&quot;&gt;
+            if (a &lt; b &amp;&amp; ok) { ... }
+    &lt;/method&gt;</programlisting>
+
+         <para>This is invalid XML, but it is easy to do because <literal>&lt;</literal> and
+               <literal>&amp;</literal> are so common in Javascript expressions. If there are
+            only a few occurrences in your method body, you can escape them individually:</para>
+
+         <programlisting>&lt;method name=&quot;...&quot;&gt;
+            if (a &amp;lt; b &amp;amp;&amp;amp; ok) { ... }
+    &lt;/method&gt;</programlisting>
+
+         <para>but that sure makes your Javascript hard to read. Fortunately, has another method for
+            specifying long stretches of text data that should not be parsed as XML: the
+               <literal>CDATA</literal> directive. The alternative way to write your method is:</para>
+
+         <programlisting>&lt;method name=&quot;...&quot;&gt;&lt;![CDATA[
+            if (a &lt; b &amp;&amp; ok) { ... }
+ ]]&gt;&lt;/method&gt;</programlisting>
+
+         <para>This clearly demarcates your Javascript and you don't have to escape individual
+            characters. As a rule of thumb, though, most programmers avoid using
+            <literal>CDATA</literal> unless it is necessary.</para>
+         <para> OpenLaszlo documentation is not intended to provide a complete reference for
+            JavaScript. Later chapters do explain some advanced topics in scripting, but we
+            recommend that you have a JavaScript reference handy while writing LZX. </para>
+      </section>
+
+      <section id="xmljscriptcomments">
+         <title>XML and Javascript Comments</title>
+         <para>Because XML and Javascript have two different comment syntaxes, you must take care to
+            use the correct syntax in each situation:</para>
+
+         <programlisting> &lt;!-- You can use XML syntax comment here --&gt;
+         /* You usually can use Javascript comment syntax here, but it is HIGHLY discouraged */
+         &lt;method name=&quot;...&quot;&gt;
+            &lt;!-- You can use XML syntax comment here --&gt;
+            /* You can also use Javascript comment syntax here */
+            &lt;![CDATA[
+     // You MUST use Javascript comment syntax here, an XML comment would look
+     // like a funky Javascript expression &quot;lessthan, not, predecrement&quot;
+     if (a &lt; b &amp;&amp; ok) { ... }
+   ]]&gt;
+ &lt;/method&gt;</programlisting>
+
+         <para>There is one exception to the above, and the reason for highly discouraging using
+            Javascript comment syntax outside of method bodies: If you declare a class to have an
+            attribute named `text` of type `text`, this tells the compiler you want the body of
+            instances of your class to be the initial value of the `text` attribute. For example,
+            the button class does this so you can say: </para>
+         <programlisting>&lt;button&gt;Click Me!&lt;/button&gt;</programlisting>
+
+         <para>And "Click Me!" becomes the <literal>text</literal> of the button. The compiler
+            treats this as if you had said:</para>
+
+         <programlisting>&lt;button text=&quot;Click Me!&quot;/&gt;</programlisting>
+
+         <para>The compiler will warn you if you say:</para>
+
+         <programlisting>&lt;button text=&quot;One thing&quot;&gt;Another&lt;/button&gt;
+</programlisting>
+         <para>because it doesn't know which you mean to be the value of the <literal>text</literal>
+            attribute.</para>
+
+         <para>The gotcha is when you define the &lt;button&gt; class. If you say:</para>
+
+         <programlisting>&lt;class name=&quot;button&quot;&gt;
+               &lt;attribute name=&quot;text&quot; type=&quot;text&quot; value=&quot;Unnamed Button&quot;/&gt;
+               
+               // Javascript comment
+               &lt;method name=&quot;...&quot;&gt;
+                  ...
+                  &lt;/method&gt;
+            &lt;/class&gt;</programlisting>
+
+         <para>The compiler sees the '// Javascript comment' as the body of the
+            &lt;class&gt; and will issue a warning. It can't tell if you want the button
+            text to be 'Unnamed Button' or '// Javascript comment'. It is for this reason that you
+            are discouraged from using Javascript comments outside of
+               <literal>&lt;method&gt;</literal>, <literal>&lt;setter&gt;</literal>
+            and <literal>&lt;handler&gt;</literal> bodies.</para>
+      </section>
+   </section>
+   <section>
+      <title>Functions</title>
+      <para>You can write functions in <literal>&lt;script&gt;</literal> tags.</para>
+
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$7.lzx"/></textobject> 
+   </programlisting>
+
+
+      <para>Functions are global to the LZX document, and they follow the same scope rules as
+         JavaScript.</para>
+
+      <para/>
+   </section>
+   <section id="tutorial-methods">
+      <title>Methods</title>
+
+      <para>Methods are in some ways similar to functions. They contain blocks of code between
+            <literal>&lt;method&gt;</literal> tags, and are associated with particular
+         classes.</para>
+
+      <para>Let's explore methods with a simple example of a window. The
+            <literal>&lt;window&gt;</literal> element is actually a view, as we saw before.
+         There are a few methods that apply to it. The <literal>window</literal> class
+            <emphasis>extends</emphasis> the <literal>lz.view</literal> class. This means that
+         windows <emphasis>inherit</emphasis> all the attributes and methods of views.</para>
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-5.lzx"/></textobject> 
+   </programlisting>
+
+      <para>Let's break this statement apart:</para>
+
+      <programlisting>    onclick="this.parent.setAttribute('title', 'You clicked it');"</programlisting>
+
+
+      <para>First, there's the </para>
+
+      <programlisting>    onclick=</programlisting>
+
+      <para>Like all of the on[event] attributes, this one takes JavaScript that will be run in the
+         context of the object when the event is received. </para>
+
+      <para>The next part:</para>
+
+      <programlisting>    this.parent</programlisting>
+
+      <para>is a reference to an object. In JavaScript, the scope is generally global unless you say
+         otherwise. That means that any class or instance methods or variables must be preceded by
+         the keyword <literal>this</literal>. As for the 'parent' part: Let's start by saying that
+         the lzx viewsystem always assigns each view a variable 'parent' which points to that view's
+         hierarchical parent. View hierarchies are discussed in detail in <xref linkend="views"/>
+      </para>
+
+      <para>Now we're going to call a method. With very few exceptions, tags in an lzx file
+         correspond to run-time objects of the view system. Using xml, we can configure those
+         objects with attributes and child nodes. Using script, we can call their APIs. From the
+         documentation, we know that the <literal>&lt;window&gt;</literal> has a
+            <literal>setAttribute()</literal> method that will change the window title to whatever
+         string you give it. </para>
+      <para> The last thing to note is the use of single quotes inside the function call.</para>
+      <para/>
+      <section>
+         <title>Using Script to Manipulate Attributes</title>
+
+         <para>Remember that <literal>window</literal> extends the <literal>lz.view</literal> class.
+            That means that each window has all the attributes of a
+            <literal>&lt;view&gt;</literal>. Here's an example of how to use script to
+            manipulate some of those assets.</para>
+         <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$9.lzx"/></textobject> 
+   </programlisting>
+
+
+         <para>We're just building on the previous example here. Instead of addressing the parent
+            view of the button, we are going two up, then one down.
+            <literal>this.parent.parent</literal> refers to the canvas, and we point to Window 2 by
+            using its <literal>name</literal> (windowTwo).</para>
+
+         <para>We are also using the <literal>setAttribute()</literal> method, which takes two
+            arguments: the attribute to set, and what to set it to.</para>
+
+         <para>Next, let's find a way to move Window 2 over so that we can see what's behind it,
+            without dragging it. Clicking the button twice doesn't help, because all that does is
+            reset the x attribute to a constant amount (150px).</para>
+
+         <para>Instead, we need to figure out where the second window is, and then add an increment
+            to it each time the button is clicked. To do that, use the . operator to get the
+               <literal>x</literal> attribute: <literal>this.parent.parent.windowTwo.x</literal>.</para>
+
+         <para>So we could say:</para>
+
+         <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$10.lzx"/></textobject> 
+   </programlisting>
+
+         <para>That works, but the code is getting pretty messy. It would be more elegant to encase
+            all the code in a block and call it whenever the button is clicked…. To do what, we
+            could write a function:</para>
+         <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$11.lzx"/></textobject> 
+   </programlisting>
+
+         <para>Notice how we use the "<literal>canvas.</literal>" syntax for pointing to the second
+            window. We have to address the view <emphasis role="em">absolutely</emphasis>. The code
+            is a lot easier to understand, because we can break it up over several lines, comment it
+            and assign appropriately-named variables.</para>
+
+         <para>However, the function is pretty detached from the button. A more elegant way of
+            achieving the same result would be to write a method <emphasis role="em">of the
+            button</emphasis>.</para>
+
+         <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$12.lzx"/></textobject> 
+   </programlisting>
+
+         <para>Since methods are not not global, we have to call them relatively. In the case of the
+            button, we use <literal>this.moveWindow()</literal>. In theory we could have a second
+            button that, when clicked, would call a method of the first button. The only difference
+            would be the addressing. Before we go any further with methods, let's take a proper look
+            at addressing:</para>
+
+
+         <para/>
+      </section>
+   </section>
+   <section>
+      <title>Addressing</title>
+
+      <para>In LZX, objects can have <literal>name</literal>s or <literal>id</literal>s or both by
+         which they can be addressed. A <literal>name</literal> needs to be referred to locally, so
+         there can be more than one view with the same name in a file (they just can't be siblings).
+         An <literal>id</literal> is global, so there can't be two views with the same
+         <literal>id</literal> in a LZX file.</para>
+
+      <para>Going back to the idea of having one button call the second button's method:</para>
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$13.lzx"/></textobject> 
+   </programlisting>
+
+      <para>Both buttons now cause the window to move. However, it's confusing that one button
+         points to a method in another button. Since windowTwo is doing the moving, why not make the
+         method part of the window, and have both buttons point to that? Instead of addressing it
+         with the whole <literal>this.parent…</literal> dot syntax, we can give it an
+         <literal>id</literal>, and access it globally:</para>
+
+
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$14.lzx"/></textobject> 
+   </programlisting>
+
+
+      <para>Just to illustrate <literal>id</literal>s and <literal>name</literal>s, one button is
+         addressing the window relatively using its <literal>name</literal>, and the other globally,
+         using its <literal>id</literal>. Note that the <literal>id</literal> and
+         <literal>name</literal> could have been the same; they were intentionally different in this
+         example.</para>
+
+
+      <para/>
+   </section>
+   <section>
+      <title>Methods and Arguments</title>
+
+      <para>In the previous example we have two buttons that do the same thing. Why not make them do
+         different things? Move the box left and right, perhaps? We might write another method to
+         move the box to the left, but it would be more elegant to use the same method for both
+         directions. Just as with functions, we can pass arguments to methods.</para>
+
+      <para>Here's one possible solution:</para>
+
+
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$15.lzx"/></textobject> 
+   </programlisting>
+
+      <para>We can pass more than one argument to a method, just as with a function:</para>
+
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$16.lzx"/></textobject> 
+   </programlisting>
+
+
+      <para/>
+   </section>
+   <!--<section>
+      <title>Using attributes to reduce complexity</title>
+
+      <para>Continuing from the same example as above, let's look at ways to reduce the number of
+         arguments being passed. Here we put the functionality into the button itself:</para>
+
+      <programlisting language="lzx">
+   <textobject><textdata fileref="programs/scripting-tutorial-$17.lzx"/></textobject> 
+   </programlisting>
+
+      <para>The buttons have attributes which we have named "distance" and "direction". The values
+         of those attributes need to be in <emphasis role="i">double quoted strings</emphasis>,
+         because the value needs to be a JavaScript expression, not a string or a number. That's the
+         reason for the <literal>value="''"</literal>. </para>
+      <para> Alternatively we could give the <literal>&lt;attribute&gt;</literal> tag an
+         attribute <literal>type="string"</literal>, as shown in the "right 2" button. In this case
+         the word "right" does not need to be single-quoted.</para>
+
+      <para>This example is actually more lengthy than the previous one, but it demonstrates the
+         power of object oriented programming in LZX. If the number of attributes were to grow, and
+         if various buttons had different attributes, the code would still remain very clear.</para>
+
+      <para/>
+   </section>-->
+</chapter>

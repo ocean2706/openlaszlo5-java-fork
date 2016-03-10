@@ -1,0 +1,23 @@
+<canvas height="250" width="100%">
+
+   <!-- bouncing yellow square -->
+   <view name="bouncysquare" x="100" y="100" bgcolor="yellow" xoffset="20" yoffset="20" width="100"
+      height="100">
+      <animatorgroup repeat="Infinity">
+         <animator attribute="xoffset" duration="1000" to="70"/>
+         <animator attribute="xoffset" duration="1000" to="20"/>
+      </animatorgroup>
+      <animatorgroup repeat="Infinity">
+         <animator attribute="yoffset" duration="500" to="70"/>
+         <animator attribute="yoffset" duration="500" to="20"/>
+      </animatorgroup>
+   </view>
+
+   <!-- Crosshairs constrained to x and y coordinates of the yellow square and intersecting at its registration point -->
+   <view x="${parent.bouncysquare.x}" width="1" height="100%" bgcolor="black"/>
+   <view y="${parent.bouncysquare.y}" width="100%" height="1" bgcolor="black"/>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2007 - 2010 Laszlo Systems, Inc.  All Rights Reserved.            *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->

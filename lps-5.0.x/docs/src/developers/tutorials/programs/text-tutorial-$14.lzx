@@ -1,0 +1,24 @@
+<canvas height="200" width="100%" debug="true">
+   <debug x="200"/>
+   <button x="15" y="15"
+      onclick="Debug.debug('%s', canvas.theField.text);">
+      Get Text 
+   </button>
+   
+   <button x="100" y="15"
+      onclick="canvas.theField.setAttribute('text', 'Hello, Laszlo!');">
+      Set Text
+   </button>
+   
+   <button x="180" y="15"
+      onclick="canvas.theField.addText(' And on.');">
+      Add Text
+   </button>
+   
+   <text x="45" y="60" width="150" height="75" multiline="true"
+      name="theField">Some sample text.</text>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2007, 2008-2011 Laszlo Systems, Inc.  All Rights Reserved.                   *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->

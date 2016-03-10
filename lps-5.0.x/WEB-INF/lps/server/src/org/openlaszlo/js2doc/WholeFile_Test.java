@@ -1,0 +1,122 @@
+/* ****************************************************************************
+ * WholeFile_Test.java
+ *
+* ****************************************************************************/
+
+/* J_LZ_COPYRIGHT_BEGIN *******************************************************
+* Copyright 2006-2008, 2011 Laszlo Systems, Inc.  All Rights Reserved.        *
+* Use is subject to license terms.                                            *
+* J_LZ_COPYRIGHT_END *********************************************************/
+
+package org.openlaszlo.js2doc;
+
+import java.io.File;
+import java.io.FilenameFilter;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.custommonkey.xmlunit.Diff;
+import org.custommonkey.xmlunit.XMLTestCase;
+import org.custommonkey.xmlunit.XMLUnit;
+import org.openlaszlo.utils.FileUtils;
+import org.w3c.dom.Document;
+
+public class WholeFile_Test extends XMLTestCase {
+
+    public WholeFile_Test (String name) {
+        super(name);
+        XMLUnit.setIgnoreWhitespace(true);
+    }
+
+    public void setUp () {
+    }
+
+    private class FilenameSuffixFilter implements FilenameFilter {
+        private String suffix;
+
+        public FilenameSuffixFilter(String suffix) {
+            this.suffix = suffix;
+        }
+
+        public boolean accept(File dir, String name) {
+            return name.endsWith(suffix);
+        }
+    }
+
+    static final String[] runtimeOptionStrings = { "swf7", "swf8", "swf9", "dhtml" };
+    static final Set<String> runtimeOptions = new HashSet<String>(Arrays.asList(runtimeOptionStrings));
+    static final String[][] runtimeAliasStrings = { { "as2", "swf7", "swf8", "swf9" },
+                                                    { "as3", "swf9" },
+                                                    { "js1", "dhtml" } };
+    static final List<String[]> runtimeAliases = Arrays.asList(runtimeAliasStrings);
+    static final String[] buildOptionStrings = { "debug", "profile" };
+    static final List<String> buildOptions = Arrays.asList(buildOptionStrings);
+
+    static {
+        // TODO [dda 2008/06/26] redo these ugly static dependencies
+        ReprocessComments.setOptions(runtimeOptions, runtimeAliases);
+        //ReprocessComments.testTranslateRuntime();
+    }
+
+    public void testSampleFiles () {
+
+        File filesDir = new File(System.getProperty("JS2DOC_TESTCASES"));
+        assertTrue(filesDir.exists());
+        assertTrue(filesDir.isDirectory());
+
+        FilenameFilter sourceFilter = new FilenameSuffixFilter(".js");
+        File[] sourceFiles = filesDir.listFiles(sourceFilter);
+
+        String sourceRoot = System.getProperty("JS2DOC_LIBROOT");
+
+        System.out.println("processing " + sourceFiles.length + " test files");
+
+        for (int i = 0; i < sourceFiles.length; i++) {
+
+            File sourceFile = sourceFiles[i];
+
+            String sourceFilename = sourceFile.getPath();
+
+            String resultFileName = FileUtils.getBase(sourceFilename) + ".xml";
+            File resultFile = new File(resultFileName);
+
+            try {
+                String source = "#file " + sourceFilename + "\n" +
+                    "#line 1\n" + FileUtils.readFileString(sourceFile);
+
+                String result = FileUtils.readFileString(resultFile);
+
+                Document control = XMLUnit.buildControlDocument(result);
+
+                Document test = JS2Doc.toXML(source, sourceFile, sourceRoot, "test", runtimeOptions, runtimeAliases, buildOptions, null);
+
+                Diff diff = new Diff(control, test);
+
+                String testString = JS2DocUtils.xmlToString(test);
+
+                if (diff.similar() == false ) {
+                    System.out.println("identical: " + diff.identical());
+                    System.out.println("output: " + testString);
+                    System.out.println("expect: " + result);
+                }
+
+                // use 'similar' rather than 'identical' here so we can put a copyright comment and line endings
+                // in the expected result file.
+                assertXMLEqual("JS2Doc.toXML(\"" + sourceFilename + "\")", diff, true);
+
+            } catch (org.xml.sax.SAXException exc) {
+                fail("JS2Doc.toXML(\"" + sourceFilename + "\")");
+                exc.printStackTrace();
+            } catch (java.io.IOException exc) {
+                fail("JS2Doc.toXML(\"" + sourceFilename + "\")");
+                exc.printStackTrace();
+            } catch (javax.xml.parsers.ParserConfigurationException exc) {
+                fail("JS2Doc.toXML(\"" + sourceFilename + "\")");
+                exc.printStackTrace();
+            }
+        }
+    }
+
+}

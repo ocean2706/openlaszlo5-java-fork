@@ -1,0 +1,15 @@
+<canvas height="100" layout="axis:y; spacing: 10">
+  <text clickable="true">Mouse over a view to see the tooltip
+      <tooltip>tooltip for a text view using the tooltip contents</tooltip>
+  </text>
+  <button text="Button">
+      <tooltip text="tooltip for a button using the tooltip text attribute"/>
+  </button>
+  <view width="30" height="30" bgcolor="red" clickable="true">Mouse over a view to see the tooltip
+      <tooltip>tooltip for a view using the tooltip contents</tooltip>
+  </view>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2007 - 2011 Laszlo Systems, Inc.  All Rights Reserved.            *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->

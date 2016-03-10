@@ -1,0 +1,615 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<chapter id="program-development">
+
+  <title>Overview of OpenLaszlo Application Development</title>
+  <para> This chapter summarizes information about OpenLaszlo application structure and mechanics
+    that an experienced programmer will need in order to start playing with code.</para>
+
+  <para>This discussion is necessarily abbreviated and incomplete; its purpose is merely to point
+    you in the right direction. As you begin to write LZX applications, you should also work through
+    the <ulink url="../developers/developers.tutorials">tutorials</ulink>.</para>
+
+
+  <section>
+    <title>The program development cycle in a nutshell</title>
+    <para> The program development cycle differs somewhat depending on whether you deploy your
+      application proxied or SOLO. Developing proxied applications is the simpler case, so we'll
+      start with that here. </para>
+
+    <para> The process of developing an OpenLaszlo application can be summarized:</para>
+    <orderedlist spacing="compact">
+      <listitem>
+        <para>Start up the OpenLaszlo Server.</para>
+      </listitem>
+      <listitem>
+        <para>Using a text editor, write program code; save the file with a <literal>.lzx</literal>
+          extension in an appropriate directory</para>
+      </listitem>
+      <listitem>
+        <para>Compile the application.</para>
+      </listitem>
+      <listitem>
+        <para>Debug and modify the program.</para>
+      </listitem>
+      <listitem>
+        <para>Repeat steps 2 through 4 until you are satisfied with the program.</para>
+      </listitem>
+      <listitem>
+        <para>Deploy the application.</para>
+      </listitem>
+    </orderedlist>
+    <para> Each of these steps is described in turn below, and explored in greater depth throughout
+      this Guide. But first we'll say a word about the Developer Toolbar, which is the default
+      interface for performing common development activities.</para>
+    <section>
+      <title>Start up the OpenLaszlo Server</title>
+
+      <para> The way to start the OpenLaszlo Server (OLS) depends on the operating system and how it
+        was installed.</para>
+      <section>
+        <title>Installed from the Download page: <ulink url="http://www.openlaszlo.org/download/"
+            >http://www.openlaszlo.org/download</ulink></title>
+
+        <para>On Windows, typically you start OLS from the Start menu; on Mac OS X the default
+          installation places the program <literal>Start OpenLaszlo Server.command</literal> in a
+          directory that includes the version number, for example,
+            <literal>/Applications/OpenLaszlo\ Server\ 4.9.0/</literal>.</para>
+      </section>
+      <section>
+        <title>Installed from source</title>
+        <para>If you install OpenLaszlo from source according to the instructions on the OpenLaszlo
+          Wiki here: <ulink url="http://wiki.openlaszlo.org/SubversionBuildInstructions"
+            >http://wiki.openlaszlo.org/SubversionBuildInstructions</ulink>, you can simply point
+          your browser to <literal>http://localhost:8080/trunk/</literal>.</para>
+      </section>
+
+    </section>
+    <section>
+      <title>Create a program file</title>
+
+      <para>Because LZX files are XML documents, you can use any text or XML editor to create and
+        edit source. Filenames must end with the .lzx extension. As you write, you'll want to have
+        the <ulink url="../reference/../reference/" type="laszlo-reference">LZX Reference
+        Manual</ulink> handy. See below for a discussion of how to use this document efficiently.</para>
+
+
+    </section>
+    <section id="program-development.where-to-put-files">
+      <title> Place file in the appropriate directory</title>
+
+      <para>In order to be compiled by the OpenLaszlo Server, files must be placed in subdirectories
+        of the following path:</para>
+      <programlisting>http://localhost:8080/trunk/</programlisting>
+      <para>A good place to start is in the directory we have provided with the build:</para>
+      <programlisting>http://localhost:8080/trunk/my-apps/</programlisting>
+    </section>
+    <section>
+      <title>Compile the application</title>
+      <para>See <xref linkend="compiler"/> for a complete discussion of all compilation options.</para>
+      <para> There are two distinct techniques for compiling the application:</para>
+      <itemizedlist spacing="compact">
+        <listitem>
+          <para>You can load it into a web browser, which will cause the OpenLaszlo Server to
+            compile it automatically when the program is first used and any time it changes;
+          or</para>
+        </listitem>
+        <listitem>
+          <para>You can invoke the stand-alone compiler separately.</para>
+        </listitem>
+      </itemizedlist>
+      <para> The simplest and most common way to compile applications, especially when you are first
+        getting familiar with OpenLaszlo, is to let the OpenLaszlo Server handle it. Both techniques
+        are described in turn below. </para>
+
+      <section>
+        <title>Compiling by loading the application into a web browser</title>
+
+        <para> In order to run your program, simply load it into your browser. The exact URL depends
+          on the configuration of the server, but will typically look something like:</para>
+
+        <programlisting>http://localhost:8080/trunk/<replaceable>path to your directory</replaceable></programlisting>
+
+        <para>The OpenLaszlo Server checks the source files for valid syntax, compiles them, caches
+          the executables and makes the application immediately visible in the browser.</para>
+      </section>
+      <section id="devtoolbar">
+        <title>The Developer Toolbar</title>
+        <para> The Developer Toolbar is a small OpenLaszlo application for selecting things like the
+          target runtime, the deployment mode (proxied or SOLO) and whether the debugger is
+          included. When you first compile an OpenLaszlo application , by default it is returned
+          with the Developer Toolbar appearing at the bottom of the application.</para>
+        <para>For example, if you point your browser to
+            <literal>http://localhost:8080/trunk/examples/hello.lzx</literal>, the Developer Toolbar
+          appears below the application:</para>
+        <informalfigure>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="images/devtoolbar.png"/>
+            </imageobject>
+          </mediaobject>
+        </informalfigure>
+
+        <section>
+          <title>Turning off the Developer Toolbar</title>
+          <para> To return the "naked" OpenLaszlo application without the Developer Toolbar, simply
+            compile the application using the "URL" method of placing the URL to the application in
+            your browser's address bar with <literal>?lzt=html</literal> appended to the address.
+            This will return the application in an HTML page. </para>
+
+        </section>
+      </section>
+
+      <section id="program-development.IE_spurious_warning">
+        <title condition="swf">Spurious Internet Explorer Content Block Warning</title>
+        <para> If you open a local SWF file in Internet Explorer, or an HTML page that accesses a
+          local SWF file in Internet Explorer, you will get a "blocked content" warning message. You
+          can safely disregard this message and continue developing. Here is why: this is not a
+          problem with OpenLaszlo nor is it a problem with IE per se. Rather it is a security
+          feature built into IE to keep viruses from accessing ActiveX controls, and it only appears
+          when you're developing applications, not when you're deploying them. </para>
+        <para> Internet Explorer uses an ActiveX control to display Flash files. It assumes that a
+          local file trying to access an ActiveX control may very well be a virus, so it puts up the
+          warning. </para>
+        <para> When you actually deploy your OpenLaszlo application, however, it will be served to
+          your visitors through a Web Server (IIS, Apache, etc) off of an actual domain, and
+          therefore will not show the error message. To verify this, run a web server locally on
+          your system and serve the page off of your local web server. you will see that the error
+          message will not be displayed. </para>
+
+      </section>
+    </section>
+    <section>
+      <title>Debug and modify the program</title>
+
+      <para> If the Sever detects errors that prevent compilation, error messages are displayed in
+        the browser.</para>
+
+
+      <para>If it detects non-critical errors or questionable constructs that do not prevent
+        compilation, warning messages are displayed in the browser below the application (you may
+        have to scroll down to see them):</para>
+
+
+
+      <para>Runtime errors are displayed in the debugger, if the debugger is running.</para>
+
+      <para>See <xref linkend="debugging"/> for a full discussion of debugging.</para>
+
+
+    </section>
+    <section>
+      <title>Iterate</title>
+
+      <para> After you've made changes to the source, simply click the Refresh button on the
+        browser. The OpenLaszlo Server automatically rechecks the source for syntax, then
+        recompiles, re-caches and makes the application visible in the browser.</para>
+
+
+    </section>
+    <section>
+      <title>Optimize</title>
+      <para>Optimize your program using the techniques in <xref linkend="performance-tuning"/>.</para>
+
+
+
+    </section>
+    <section>
+      <title>Deploy</title>
+
+      <para> See <xref linkend="proxied"/> for discussion of how to make your application available
+        for general use.</para>
+
+
+    </section>
+  </section>
+  <section>
+    <title>From "Hello, World" to real programs</title>
+
+    <para>The canonical "Hello, World" program can be written in LZX:</para>
+
+    <example role="live-example">
+      <title>Hello world</title>
+      <programlisting language="lzx">
+      <textobject><textdata fileref="programs/program-development-$1.lzx"/></textobject> 
+    </programlisting>
+    </example>
+
+    <para>This program illustrates three essential features of all Laszlo applications:</para>
+
+    <itemizedlist spacing="compact">
+      <listitem>
+        <para>LZX files are well-formed XML documents</para>
+      </listitem>
+      <listitem>
+        <para>><literal>&lt;canvas&gt;</literal> is the root node; programs open with the
+            <literal>&lt;canvas&gt;</literal> tag and close with
+            <literal>&lt;/canvas&gt;</literal></para>
+      </listitem>
+      <listitem>
+        <para>Within the canvas, views are displayed. As we shall see, a
+            <literal>&lt;text&gt;</literal> element is simply a kind of view.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The next section discusses the ingredients of a typical OpenLaszlo application. See also
+      the <ulink url="../../examples/" type="">example programs</ulink> to get a feel for the
+      general structure of LZX applications.</para>
+
+
+    <section>
+      <title>Essential Structures</title>
+
+      <para> Typical Laszlo applications contain the following parts, which are discussed briefly in
+        turn below</para>
+      <itemizedlist spacing="compact">
+        <listitem>
+          <para>canvas (<xref linkend="program-development.canvas"/>)</para>
+        </listitem>
+        <listitem>
+          <para>views (<xref linkend="program-development.views"/>)</para>
+        </listitem>
+        <listitem>
+          <para>data (<xref linkend="program-development.data-binding"/>)</para>
+        </listitem>
+        <listitem>
+          <para>libraries and includes (<xref linkend="program-development.libraries-and-includes"
+            />)</para>
+        </listitem>
+        <listitem>
+          <para>comments (<xref linkend="program-development.comments"/>)</para>
+        </listitem>
+      </itemizedlist>
+
+
+
+    </section>
+    <section id="program-development.canvas">
+      <title>The Canvas</title>
+
+      <para> The root node of every Laszlo application is the <glossterm>canvas</glossterm>; there
+        is one and only one canvas per LZX application. The canvas is the logical container of all
+        other nodes in the program; visually it is a rectangle that is displayed in the content area
+        of a web browser. You can explicitly set the height and width of the canvas, in pixels, by
+        assigning values to attributes in the opening tag.</para>
+
+      <programlisting>
+&lt;canvas height="20" width="30"&gt; 
+&lt;/canvas&gt;
+</programlisting>
+
+      <para> If you do not set the height and width, the canvas sizes itself to
+        the size of the views it contains. The canvas, by default, has a nonzero
+        width and height: it sizes itself to the HTML page that contains it. Therefore the null LZX
+        application</para>
+
+      <programlisting>
+&lt;canvas/&gt;
+</programlisting>
+
+      <para>defines an invisible object that is the size of the page.</para>
+
+      <para>In addition to its height and width, the canvas has several other visible attributes.
+        The background color, defined by the <literal>bgcolor</literal> attribute, is most useful
+        for learning about the visual structures of LZX applications.</para>
+
+      <section>
+        <title>The <literal>&lt;script&gt;</literal> tag</title>
+
+        <para>Within LZX applications, you can embed arbitrary JavaScript functions by nesting them
+          in <literal>&lt;script&gt;</literal> constructs. This is helpful for defining
+          (global) functions that will be used by different classes. The
+            <literal>&lt;script&gt;</literal> tag must be a child of
+            <literal>&lt;canvas&gt;</literal>. That is to say,</para>
+        <programlisting>
+&lt;canvas&gt;
+  &lt;script&gt;
+    var Constant = 1;
+  &lt;/script&gt; 
+&lt;/canvas&gt;
+</programlisting>
+
+        <para>is an allowed structure while</para>
+
+        <programlisting>
+&lt;canvas&gt; 
+  &lt;view&gt; 
+    &lt;script&gt; <co id="N1019F"/>
+      var Constant = 1;
+    &lt;/script&gt; 
+  &lt;/view&gt; 
+&lt;/canvas&gt;
+</programlisting>
+        <calloutlist>
+          <callout arearefs="N1019F">
+            <para> Wrong! The <literal>&lt;script&gt;</literal> tag is not allowed inside a
+              view!</para>
+          </callout>
+        </calloutlist>
+
+      </section>
+      <section>
+        <title><literal>name</literal> vs. <literal>id</literal></title>
+
+        <para>In LZX the <literal>id</literal> attribute of an object is a global identifier that is
+          visible throughout the entire program space, while the <literal>name</literal> of an
+          object is an attribute like any other, which can only be referenced by its path (except in
+          the case of named children of the canvas, as noted below). Consider</para>
+
+        <programlisting>
+&lt;canvas&gt; 
+  &lt;view id="v1" name="outer_view"&gt; 
+    &lt;view id="v2" name="inner_view" bgcolor="blue"/&gt; 
+  &lt;/view&gt; 
+&lt;/canvas&gt;</programlisting>
+
+        <para>The value of the outer view's background color can be referenced as
+            <literal>v1.bgcolor</literal> or <literal>outer_view.bgcolor</literal>. The background
+          color of the inner view can be referenced as <literal>v2.bgcolor</literal> from anywhere
+          within the application. To reference it by name from outside of
+          <varname>inner_view</varname> you would specify
+          <literal>outer_view.inner_view.bgcolor</literal>.</para>
+
+
+      </section>
+      <section>
+        <title>Named children of the canvas</title>
+
+        <para> Objects that are named children of the canvas can be simply addressed. For example,
+          consider</para>
+
+        <programlisting>
+&lt;canvas&gt;
+  &lt;view name="artichoke"&gt;
+  &lt;!-- more program code --&gt;
+&lt;/canvas&gt;</programlisting>
+
+        <para>The view <varname>artichoke</varname> can be referenced from anywhere within the
+          application simply as <literal>artichoke</literal>. That is, it is not necessary to
+          reference it as <literal>canvas.artichoke</literal>.</para>
+
+
+      </section>
+    </section>
+    <section id="program-development.views">
+      <title>Views</title>
+
+      <para>The view is the basic visible element in an OpenLaszlo application. Anything that is
+        displayed on the canvas is a view (or an object that is an instance of a class that extends
+        view).</para>
+
+
+      <section>
+        <title>Visible and invisible views </title>
+
+        <para>A view is only visible if it has color, or text, or an image assigned to it, and if
+          the height and width of the view are greater than zero. For example, the following code
+          would display only one view even though three views are defined. The second and third
+          views exist but they are invisible. The second has no color assigned to it and the third
+          has zero width. They still, however, affect the arrangement of the other two views.</para>
+        <example role="live-example">
+          <title>Nested views</title>
+          <programlisting language="lzx">
+      <textobject><textdata fileref="programs/program-development-$8.lzx"/></textobject> 
+    </programlisting>
+        </example>
+
+
+      </section>
+      <section>
+        <title>Views as containers of other views</title>
+
+        <para> Views can also contain other views, allowing you to create complex visual elements.
+          Each 'parent' view can have any number of children. By default, each child view is
+          positioned relative to the top-left corner of its parent as shown in the example.</para>
+
+        <para>Although it is always possible to position any view by specifying its horizontal (x)
+          and vertical (y) origin, stated in pixels, relative to its parent, it is often convenient
+          to have the system lay things out for you. Layout types built into the system include
+            <literal>&lt;simplelayout&gt;</literal>,
+            <literal>&lt;stableborderlayout&gt;</literal>,
+            <literal>&lt;constantlayout&gt;</literal>,
+          <literal>&lt;resizelayout&gt;</literal>, and
+            <literal>&lt;wrappinglayout&gt;</literal></para>
+
+
+      </section>
+      <section>
+        <title>View sizing and clipping</title>
+
+        <para>Consider the following application:</para>
+
+        <example role="live-example">
+          <title>Parent and children dimensions</title>
+          <programlisting language="lzx">
+      <textobject><textdata fileref="programs/program-development-$9.lzx"/></textobject> 
+    </programlisting>
+        </example>
+
+
+        <para>Running the example above also shows that the width and height of a view can be
+          different than the dimensions of the bounding box of its child views. No clipping occurred
+          on the "yellow" view even though it lies outside the boundary of its parent.</para>
+
+        <para> If no width and height are actually defined for a view, then it will adopt the width
+          and height of the bounding box not its subviews. If clipping is desired, however, then the
+          attribute <literal>clip="true"</literal> can be added to the parent, which would look like
+          the following.</para>
+
+        <example role="live-example">
+          <title>Clipping</title>
+          <programlisting language="lzx">
+      <textobject><textdata fileref="programs/program-development-$10.lzx"/></textobject> 
+    </programlisting>
+        </example>
+
+      </section>
+      <section>
+        <title>Images and other resources</title>
+
+        <para> In addition to showing text and color, views are used to display, or play, media
+          files of various formats, such as .gif, .jpeg, .png, .swf, and .mp3, for example. These
+          resources may be compiled into the application or brought in at run time; they can be on
+          the OpenLaszlo server or on a remote back end, and can be referenced by relative paths or
+          absolute ids. </para>
+
+
+
+      </section>
+    </section>
+    <section id="program-development.data-binding">
+      <title>Data Binding</title>
+
+      <para> LZX derives much of its power from its unique implementation of data binding, in which
+        the contents of a view are determined by the contents of a dataset. A dataset is simply a
+        named hierarchy of XML data that has a single root node. All data in LZX applications is
+        contained in datasets.</para>
+      <para> The concept of data binding implies more than the use of views to display XML data;
+        rather the data itself can determine the size, color, contents, placement, etc. of views,
+        and even cause views to be created or destroyed. </para>
+
+      <para>Consider the following program:</para>
+
+      <example role="live-example">
+        <title>Simple databinding</title>
+        <programlisting language="lzx">
+      <textobject><textdata fileref="programs/program-development-$11.lzx"/></textobject> 
+    </programlisting>
+      </example>
+
+      <para> In the above example, the one line</para>
+
+      <programlisting>
+&lt;view datapath="ds:/record"&gt; 
+</programlisting>
+
+      <para>Causes three views to be created, and the line</para>
+
+      <programlisting>
+&lt;text datapath="@name" bgcolor="$path{@color}" x="$path{@x}"/&gt;
+</programlisting>
+
+      <para>causes each view's textual content, background color and x position to be determined by
+        the contents of the dataset.</para>
+
+    </section>
+    <section id="program-development.libraries-and-includes">
+      <title>Includes and libraries</title>
+
+      <para> The source code for an LZX application can be contained in a single file; such files
+        can grow quite large and thus hard to manipulate and maintain. By dividing your application
+        into a number of smaller files, however, you can increase maintainability and
+        understandability of your application. You can even break deep view hierarchies into
+        multiple files to improve modularity, clarity, and source code organization.</para>
+
+      <section>
+        <title>The <literal>&lt;include&gt;</literal> tag</title>
+
+        <para>This tag allows you to specify the name of a file to be include at any point in your
+          application. The file to be included can be a library, a view, or text.</para>
+
+        <para>When the target is a library file (an XML file whose root element is
+            <literal>&lt;library&gt;</literal>), the contents of the library file are
+          included in the application. Any views, scripts, fonts, resources, audios, datasources,
+          datasets, class definitions, etc. in the library file are included in the application. A
+          library file can include other libraries, but a library is included in an application only
+          once, no matter how many <literal>&lt;include&gt;</literal> statements reference
+          it. For example,</para>
+
+        <programlisting>
+&lt;canvas&gt; 
+  &lt;include href="library.lzx"/&gt; 
+  &lt;mywindow/&gt; 
+&lt;/canvas&gt; 
+</programlisting>
+
+        <programlisting>
+&lt;library&gt; 
+  &lt;class name="mywindow" extends"window" 
+         title="My Title"&gt; 
+    &lt;button&gt; Click me! &lt;/button&gt; 
+  &lt;/class&gt; 
+&lt;/library&gt; 
+</programlisting>
+        <para> The semantics for including views and text are analogous but slightly different.
+          Unlike including a library file, a non text or view file is inserted once each time it's
+          included. </para>
+
+
+      </section>
+    </section>
+    <section id="program-development.comments">
+      <title>Comments</title>
+
+
+      <section>
+        <title>XML comments</title>
+
+        <para>These take the form</para>
+
+        <programlisting>&lt;!--  comment --&gt;</programlisting>
+
+        <para> and may appear between (but not within) tags in XML text. XML does not have a
+          separate syntax for line ending comments, and does not allow nested comments.</para>
+        <para> Often when debugging you find yourself commenting out sections of code. Because it's
+          illegal to nest XML comments within XML comments, this technique does not work for
+          commented sections of declarative LZX. A good way around this problem is to use XML
+          processing instructions which are of the form</para>
+
+        <programlisting>
+&lt;?ignore
+
+?&gt;
+</programlisting>
+
+        <para>So, to comment out the blue and green views below,</para>
+
+        <programlisting>
+    &lt;canvas height="100"&gt;
+    &lt;simplelayout/&gt; 
+    &lt;!-- This is a red view --&gt; 
+    &lt;view bgcolor="red" width="100" height="20"/&gt; 
+    &lt;?ignore <co id="N102A3"/>
+    &lt;!-- This is a blue view --&gt; 
+    &lt;view bgcolor="blue" width="100" height="20"/&gt; 
+    &lt;!-- This is a green view --&gt; 
+    &lt;view bgcolor="green" width="100" height="20"/&gt; 
+    ?&gt;       <co id="N102AD"/>
+    &lt;!-- This is a yellow view --&gt; 
+    &lt;view bgcolor="yellow" width="100" height="20"/&gt; 
+    &lt;/canvas&gt;  
+</programlisting>
+        <calloutlist>
+          <callout arearefs="N102A3">
+            <para>Lines between <literal>&lt;?ignore</literal> and <literal>?&gt;</literal>
+              are ignored</para>
+          </callout>
+          <callout arearefs="N102AD">
+            <para>End of the <wordasword>ignore</wordasword> section</para>
+          </callout>
+        </calloutlist>
+
+
+      </section>
+      <section>
+        <title>Script comments</title>
+
+        <para> In script, block comments are of the form</para>
+
+        <programlisting>/* comment */</programlisting>
+
+        <para>Line ending comments start with <literal>//</literal> and continue to the end of the
+          line:</para>
+
+        <programlisting>// line comment</programlisting>
+
+        <programlisting>
+&lt;script&gt; 
+  /* script comments look like this */ 
+  some.method() // this is an example of comment syntax 
+  &lt;!-- ERROR!  do not enclose XML comments in script! --&gt; 
+&lt;/script&gt;  // ERROR! Do not include script comments in XML!</programlisting>
+      </section>
+    </section>
+  </section>
+</chapter>

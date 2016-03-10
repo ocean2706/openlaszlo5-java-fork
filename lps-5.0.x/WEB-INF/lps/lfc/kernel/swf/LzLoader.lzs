@@ -1,0 +1,450 @@
+/**
+  * LzLoader.as
+  *
+  * @copyright Copyright 2001-2009 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  *
+  * @topic Kernel
+  * @subtopic AS2
+  */
+
+/**
+  * @access private
+  */
+class LzLoader extends LzEventable {
+
+function LzLoader (owner, args) {
+    super();
+    //Debug.write("LzLoader initialize owner=",owner,'attachref=', args.attachRef, args);
+    this.mc = args.attachRef == null ? owner.__LZmovieClipRef : args.attachRef;
+    //this breaks media loading in swf: this.mc = args.attachRef == null ? owner.getMCRef() : args.attachRef;
+
+    if ( args.attachRef == null && args.attachname != null ){
+        // attachname is only used in LzRemote
+        this.mc.attachMovie( "empty" , args.attachname , this.newContextDepth );
+        this.mc = this.mc[ args.attachname ];
+    }
+
+    this.loadmcnum = 1;
+    this.loadmcdepth = 1;
+    this.loadmclist = [];
+
+    if (args.timeout != null) {
+        this.timeout = args.timeout;
+    }
+
+    if ('proxied' in args) {
+        this.proxied = (args.proxied == true);
+    }
+
+    this.owner = owner;
+}
+
+/**
+  * @access private
+  * (not really, but the doc tools will complain
+  */
+override function destroy () {
+    // [2005-08-25 ptw] Hosie doorknob black magic: removing a movie
+    // clip from anywhere will magically delete any properties that
+    // reference it (i.e., all movieclip references are weak,
+    // apparently).
+    // [2009-03-21 anba] Found a page with more information about
+    // movieclip references: http://moock.org/asdg/technotes/movieclipDatatype/
+    this.mc.removeMovieClip();
+    super.destroy();
+}
+
+var ondata = LzDeclaredEvent;
+var onrequest = LzDeclaredEvent;
+var ontimeout = LzDeclaredEvent;
+var onerror = LzDeclaredEvent;
+
+var timeout = 30000;
+var doCacheRequest = true;
+
+var queuing = false;
+
+var secure = false;
+var secureport = null;
+
+var newContextDepth = 3238;
+var proxied = true;
+
+
+/**
+  * This creates an initial movie that we keep state on.  LzLoadQueue
+  * will attach a movie to that to load the actual resource into.  We
+  * can't use the same movie, because loading replaces all attributes.
+  * We have to use a movie here instead of an object, because movies
+  * can only be attached to movies.
+  * 
+  * @access private
+  */
+function getLoadMovie ( ){
+    // Attach normal empty movie
+    if ( this.loadmclist[ 0 ].loaded ){
+        var newmc = this.loadmclist.shift();
+    } else {
+        var lmname = "loadmc" + this.loadmcdepth;
+        if (this.mc[lmname]) {
+            if ($debug) {
+                Debug.error("%w.mc[%s]: %w", this, lmname, this.mc[lmname]);
+            }
+        }
+        this.mc.attachMovie( "empty" , lmname , this.loadmcdepth );
+        var newmc = this.mc[ lmname ];
+        newmc.loader = this;
+        newmc.mc = newmc;
+        this.loadmcdepth++
+        if ($debug) {
+            LzLoader.debugLoadObj(newmc);
+        }
+    }
+
+    this.loadmclist.push ( newmc );
+    return newmc;
+}
+
+/**
+  * [1] A movieclip whose _parent is the loader request movieclip [see getLoadMovie()]
+  * [2] A Flash XML Object (holding the response from a serverless data
+  * request) which is also the object referred to in the various
+  * bookeeping for queues, timeouts, etc.
+  * 
+  * @param loadobj: the request object that is being handled
+  * @param data: An LzDataElement tree to attach to specified dataset
+  * @access private
+  */
+function returnData ( loadobj , data ){
+    // Check if returnData has already been called on this
+    // object. This can happen if a serverless data load timed out in
+    // the LFC, but eventually returned something via the
+    // LoadVars.sendAndLoad() callback.
+    if (loadobj.loaded && loadobj.valid && loadobj.timedout && data == null) {
+        if ($debug) {
+            Debug.warn("%w.returnData: %w already loaded",
+                       this, loadobj);
+        }
+        return;
+    }
+
+    if (loadobj instanceof MovieClip) {
+        // Nothing to do
+    } else if (loadobj instanceof XMLNode) {
+        // Nothing to do
+    } else if ($debug) {
+        Debug.error("%w.returnData: unhandled loadobj %w", this, loadobj);
+    }
+
+    // Ok, we have loaded this. unloadRequest changes state of loadobj
+    // from loading to loaded.
+
+    // TODO [2005-08-11 ptw] If this were a multi-threaded system, we
+    // would have to worry about getLoadMovie trying to reuse the
+    // loadobj before we have finished with it.
+
+    LzLoadQueue.unloadRequest(loadobj);
+
+    if ( ! loadobj.valid ) {
+        return;
+    }
+
+    this.lastloadtime = getTimer() - loadobj.loadtime;
+
+    var err;
+    if (! data) {
+        // Nothing to do
+    } else if (data.childNodes[0].nodeName == "error") {
+        err = data.childNodes[0].attributes.msg;
+    } else if (data.nodeName == "error") {
+        err = data.attributes.msg;
+    } else if (data == "medialoaderror") {
+        err = "Media load error";
+    }
+
+    if ( err != null ){
+        if (this.onerror.ready) {
+            /* we need to pass the data-object if our owner is a LzHTTPLoader, 
+             * to conform to the new LzHTTPDataProvider class,
+             * also see "LzHTTPDataProvider#loadResponse(..)"
+             */
+            this.onerror.sendEvent( this.owner instanceof LzHTTPLoader ? data : err );
+        }
+        return;
+    }
+
+    if ( this.queuing ){
+        loadobj.data = data;
+
+        while ( this.expectedList.length &&
+                this.expectedList[ 0 ].loaded ){
+            var tlmc = this.expectedList.shift();
+            if ( tlmc.timedout ){
+                this.doTimeOut(tlmc);
+            } else if( tlmc.data ){
+                if (this.ondata.ready) this.ondata.sendEvent( tlmc.data );
+                tlmc.data = null;
+            }
+        }
+    } else {
+        if ( loadobj.timedout ){
+            this.doTimeOut(loadobj);
+        } else if ( data ){
+            if (this.ondata.ready) this.ondata.sendEvent( data );
+        }
+    }
+}
+
+/**
+  * @access private
+  */
+function getLastLoadtime ( ){
+    return this.lastloadtime;
+}
+
+/**
+  * @access private
+  */
+function abort ( req ){
+    if (arguments.length < 1) {
+        if ( this.queuing ) {
+            req = this.expectedList.pop( );
+        } else {
+            req = this.lastrequest;
+        }
+    }
+    req.valid = false;
+}
+
+/**
+  * @access private
+  */
+function initializeRequestObj (loadobj) {
+    loadobj.seqnum = this.loadmcnum++;
+
+    // Set by LzLoadQueue.loadFinished
+    
+    // N.B.: Although these flags (loaded, loading) on loadobj are
+    // defined in LzLoader, they are the province of LzLoadQueue.  The
+    // modularity here is badly broken.
+
+    // TODO [2005-08-11 ptw] If this were a multi-threaded system, we
+    // would have to worry about getLoadMovie trying to reuse the
+    // loadobj before we have initialized it.
+    loadobj.loaded = false;
+    loadobj.loading = false;
+    loadobj.data = null;
+    // N.B. Do _NOT_ re-initialize lmcnum.  See comment in
+    // LzLoadQueue.loadMovie
+
+    // Set to false if aborted
+    loadobj.valid = true;
+
+    // TODO [2005-08-22 ptw] If this is a reused loadobj, won't this
+    // preserve the previous timeout, when it shouldn't?
+    if (typeof(loadobj.timeout) == 'undefined') {
+        loadobj.timeout = this.timeout;
+    }
+    loadobj.timedout = false;
+
+    if ( this.queuing ){
+        if ( this.expectedList ) {
+            this.expectedList.push( loadobj );
+        } else {
+            this.expectedList= [ loadobj ];
+        }
+    } else if( this.lastrequest != loadobj ){
+        // Superceding an existing request
+        // [2005-08-17 adam] when the request gets made, there's no
+        // reliable way to hang up (all of them can cause crash to
+        // Flash in various configs.) so the LFC just ignores the
+        // response if you've made another request in the interim.
+        if (this.lastrequest) {
+            if (! this.lastrequest.loaded) {
+                this.lastrequest.valid = false;
+            }
+        }
+        this.lastrequest = loadobj;
+    }
+
+    loadobj.secure = this.secure;
+    loadobj.secureport = this.secureport;
+
+    loadobj.loader = this;
+}
+
+/**
+  * @access private
+  */
+function request ( o ){
+    var lmv = this.getLoadMovie( );
+
+    if (typeof(o.cache) == "undefined" || o.cache == null) {
+        o.cache = this.doCacheRequest;
+    }
+
+    this.initializeRequestObj(lmv);
+
+    if (typeof(o.timeout) != 'undefined') {
+        lmv.timeout = o.timeout;
+    }
+
+    lmv.lzt = o.lzt;
+    if (o.proxied) {
+        o.proxyurl = canvas.getProxyURL(o.url);
+    } else {
+        o.proxyurl = null;
+    }
+
+    if (typeof(o.proxied) != 'undefined' && o.proxied != null) {
+        lmv.proxied = o.proxied;
+    } else {
+        lmv.proxied = canvas.isProxied();
+    }
+
+    lmv.reqobj = o;
+    // pass the swf version as a query arg named "lzr" := swf6 | swf7
+    o.lzr = canvas.runtime;
+
+    LzLoadQueue.enqueueRequest( lmv );
+    if (this.onrequest.ready) this.onrequest.sendEvent(o);
+}
+
+/**
+  * @access private
+  * @param MovieClip loadobj: the LoadMovie to unload, defaults to the
+  * lastrequest
+  */
+function unload ( loadobj ){
+    if (arguments.length < 1) {
+        loadobj = this.lastrequest;
+    }
+    if (loadobj) {
+        //if it hasn't loaded yet
+        loadobj.valid = false;
+        if (typeof(loadobj) == "movieclip") {
+            if ( loadobj.lmc ) {
+                //unloadMovie DOESN'T WORK in some browsers -- e.g. Mac IE 5.2
+                //and Netscape 4.7
+                //this.lastrequest.lmc.unloadMovie(  );
+                loadobj.lmc.removeMovieClip(  );
+                delete loadobj.lmc;
+            }
+        } else if (loadobj instanceof SoundMC) {
+            if (loadobj.lmc) {
+                loadobj.lmc.unloadMovie();
+                delete loadobj.lmc;
+            }
+        } else {
+            // the request object is a SOLO XML node
+            // Is there ANY way to abort the LoadVars.sendAndLoad() which may be still open?
+        }
+        if (this.lastrequest === loadobj) {
+            this.lastrequest = null;
+        }
+        LzLoadQueue.unloadRequest( loadobj );
+    }
+}
+
+
+/**
+  * @access private
+  * @param MovieClip loadobj: the LoadMovie that timed out, defaults to
+  * the lastrequest
+  */
+function doTimeOut ( loadobj ){
+    if (arguments.length < 1) {
+        loadobj = this.lastrequest;
+    }
+    if (loadobj) {
+        this.unload(loadobj);
+        if (this.ontimeout.ready) this.ontimeout.sendEvent();
+    }
+}
+
+/**
+  * @access private
+  * @param MovieClip loadobj: the LoadMovie that had an error
+  * @param String msg: The error message returned in onerror event
+  */
+function doError ( loadobj, msg ){
+    if (loadobj) {
+        this.returnData(loadobj);
+        this.unload(loadobj);
+        if ($debug) {
+            Debug.warn('Loader error', msg);
+        }
+        if (this.onerror.ready) this.onerror.sendEvent(msg);
+    }
+}
+
+if ($debug) {
+/**
+  * @access private
+  */
+LzLoader.prototype._dbg_name = function () {
+    var lr = this.lastrequest;
+    if (this.queueing) {
+        var el = this.expectedList;
+        if (el && el.length > 0) {
+            lr = this.expectedList[0];
+        }
+    }
+    if (lr) {
+        return Debug.formatToString("%w", lr);
+    } else {
+        return "idle";
+    }
+}
+
+/**
+  * Set to true to monitor loadMovie state changes when debugging
+  * @access private
+  */
+static var __LZmonitorState = false;
+
+
+/**
+  * Annotate loadobj for debugging
+  * Can be used by subclasses that provide their own loadobj.  Cf.,
+  * LzMediaLoader
+  * 
+  * @param MovieClip loadobj: the clip to annotate
+  * @param String typename: the typename to use, default 'LoadObj'
+  */
+static function debugLoadObj (loadobj, typename) {
+    if (arguments.length < 2) {
+        typename = 'LoadObj';
+    }
+/** @access private */
+    loadobj._dbg_name = function () {
+        var state = this.valid ? "initialized" : "invalid";
+        // Decode boolean flags into state.  Order is important.
+        if (this.loading) { state = this.valid ? "loading" : "aborting"; }
+        if (this.loaded) { state = this.valid ? "loaded" : "aborted"; }
+        if (this.timedout) { state = "timedout"; }
+        // TODO: [2005-08-11 ptw] LzURL should be able to
+        // parse a relative URL
+        var url = (new LzURL(this.reqobj.url)).file;
+        if (! url) { url = this.reqobj.url; }
+        return Debug.formatToString("%s (%s)", url, state);
+    };
+    loadobj._dbg_typename = typename;
+    // Monitor state variables if requested
+    if (LzLoader.__LZmonitorState) {
+        loadobj.valid = null;
+        Debug.monitor(loadobj, 'valid');
+        loadobj.loaded = null;
+        Debug.monitor(loadobj, 'loaded');
+        loadobj.loading = null;
+        Debug.monitor(loadobj, 'loading');
+        loadobj.lmcnum = null;
+        Debug.monitor(loadobj, 'lmcnum');
+        loadobj.timedout = null;
+        Debug.monitor(loadobj, 'timedout');
+    }
+}
+}
+
+}; // End of LzLoader

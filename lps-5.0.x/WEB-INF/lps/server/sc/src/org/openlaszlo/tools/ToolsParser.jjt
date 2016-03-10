@@ -1,0 +1,533 @@
+/* J_LZ_COPYRIGHT_BEGIN *******************************************************
+* Copyright 2011 Laszlo Systems, Inc.  All Rights Reserved.                   *
+* Use is subject to license terms.                                            *
+* J_LZ_COPYRIGHT_END *********************************************************/
+
+/**
+ * Simple parser for JavaCC's Visitor interface file. Reads the interface file
+ * and generates useful Visitor classes.
+ * @author André Bargull
+ */
+options
+{
+  STATIC = false;
+  DEBUG_PARSER = false;
+  DEBUG_TOKEN_MANAGER = false;
+  JAVA_UNICODE_ESCAPE = true;
+  MULTI = true;
+  NODE_DEFAULT_VOID = true;
+  NODE_PACKAGE = "org.openlaszlo.tools";
+  NODE_CLASS = "org.openlaszlo.tools.ToolsParser.ExtendedNode";
+  VISITOR = true;
+  UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(ToolsParser)
+package org.openlaszlo.tools;
+import java.io.*;
+import java.util.*;
+
+public class ToolsParser {
+  public static class ExtendedNode extends SimpleNode implements Node {
+    public ExtendedNode(int i) {
+      super(i);
+    }
+    public ExtendedNode(ToolsParser p, int i) {
+      super(p, i);
+    }
+    public ExtendedNode get(int i) { return (ExtendedNode) jjtGetChild(i); }
+    @SuppressWarnings("unchecked")
+    public <V> V getValue() { return (V) jjtGetValue(); }
+    public <V> void setValue(V v) { jjtSetValue(v); }
+  }
+
+  private static String[] parse(String args[]) {
+    String cmd[] = new String[3];
+    int len = args.length;
+    for (int i = 0; i < len; ++i) {
+      String arg = args[i];
+      if ("-input".equals(arg)) {
+        cmd[0] = args[++i];
+      } else if ("-output".equals(arg)) {
+        cmd[1] = args[++i];
+      } else if ("-all".equals(arg)) {
+        cmd[2] = "";
+      } else if ("-t".equals(arg)) {
+        cmd[2] = args[++i];
+      } else {
+        System.err.printf("ignoring invalid argument '%s'\n", arg);
+      }
+    }
+    return cmd;
+  }
+
+  public static void main(String args[]) {
+    args = parse(args);
+    if (args[0] == null || args[2] == null) {
+      System.out.println("Usage: -input <infile> [-output <outfile>] (-t <template> | -all)");
+      return;
+    }
+    String in = args[0];
+    String out = args[1];
+    String name = args[2];
+    OutputVisitor.Template templates[];
+    if (name.isEmpty()) {
+      templates = OutputVisitor.Template.all();
+    } else {
+      OutputVisitor.Template t = OutputVisitor.Template.forName(name);
+      if (t == null) {
+        String names[] = OutputVisitor.Template.names();
+        System.out.printf("Invalid template name '%s', try one of %s", name, Arrays.toString(names));
+        return;
+      }
+      templates = new OutputVisitor.Template[]{ t };
+    }
+
+    for (OutputVisitor.Template template : templates) {
+      try {
+        InputStream is = new BufferedInputStream(new FileInputStream(in));
+        InputStreamReader reader = new InputStreamReader(is, "UTF-8");
+        ToolsParser parser = new ToolsParser(reader);
+
+        ExtendedNode n = parser.CompilationUnit();
+        StringBuilder sb = new StringBuilder();
+        OutputVisitor visitor = new OutputVisitor(sb, template);
+        n.jjtAccept(visitor, null);
+
+        if (out != null) {
+          File f = new File(out);
+          if (f.isDirectory()) {
+            f = new File(f, visitor.getClassName() + ".java");
+          }
+          OutputStream os = new BufferedOutputStream(new FileOutputStream(f));
+          OutputStreamWriter writer = new OutputStreamWriter(os, "UTF-8");
+          writer.write(sb.toString());
+          writer.flush();
+          writer.close();
+        } else {
+          System.out.println(sb.toString());
+        }
+        is.close();
+      } catch (Exception e) {
+        System.err.println(e.getMessage());
+        System.exit(1);
+      }
+    }
+  }
+
+  public static class OutputVisitor implements ToolsParserVisitor {
+    private static final String preamble =
+      "/* Generated file, do not edit! */\n";
+    private static final String packageTempl =
+      "package %s;\n";
+    private static final String importTempl =
+      "import %s;\n";
+    private static final String suppressTempl =
+      "@SuppressWarnings(\"unchecked\")\n";
+
+    private final StringBuilder writer;
+    private final Template template;
+    private String className;
+
+    static enum Type {
+      Interface, Class;
+
+      String id() {
+        return (this == Interface ? "interface" : "abstract class");
+      }
+    }
+
+    abstract static class Template {
+      final Type type;
+      final Template proto[];
+
+      Template(Type type, Template... proto) {
+        this.type = type;
+        this.proto = proto;
+        publish(this);
+      }
+
+      private static final Map<String, Template> templates = new HashMap<String, Template>();
+      private static void publish(Template t) {
+        if (! t.isBase()) { templates.put(t.name(), t); }
+      }
+      public static Template forName(String name) {
+        return templates.get(name);
+      }
+      public static String[] names() {
+        return templates.keySet().toArray(new String[0]);
+      }
+      public static Template[] all() {
+        return templates.values().toArray(new Template[0]);
+      }
+
+      abstract String name();
+      abstract String methodTemplate();
+      String implTemplate() { return ""; }
+      boolean isBase() { return false; }
+      boolean isGeneric() { return false; }
+      String getNodeName() { return "SimpleNode"; }
+      boolean hasNodeMethod() { return true; }
+
+      String id(String suffix) {
+        return (name() + suffix);
+      }
+
+      private String generics() {
+        return (hasGenerics() ? "<D, R>" : "");
+      }
+
+      private boolean hasGenerics() {
+        if (this.isGeneric()) {
+          return true;
+        }
+        for (Template p : proto) {
+          if (p.hasGenerics()) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      String declaration(String suffix) {
+        String s = "public %s %s %s %s";
+        String t, n, e = "", i = "";
+
+        Template parent = null;
+        for (Template p : proto) {
+          if (p.type == Type.Class) {
+            assert (parent == null);
+            parent = p;
+          } else {
+            i += p.id(suffix) + p.generics() + ",";
+          }
+        }
+
+        t = type.id();
+        n = id(suffix) + generics();
+        if (parent != null) {
+          e = "extends " + parent.id(suffix) + parent.generics();
+        }
+        if (! i.isEmpty()) {
+          i = "implements " + i.substring(0, i.length() - 1);
+        }
+
+        return String.format(s, t, n, e, i);
+      }
+
+      static final Template baseTemplate = new Template(Type.Interface) {
+        String name() { return ""; }
+        String methodTemplate() { return null; }
+        boolean isBase() { return true; }
+      };
+      static final Template nullTemplate = new Template(Type.Class, baseTemplate) {
+        String name() { return "Null"; }
+        String methodTemplate() {
+          return
+            " public %1$s %2$s(%3$s %4$s, %5$s %6$s) {\n"
+          + "  return null;\n"
+          + " }\n";
+        }
+      };
+      static final Template identityTemplate = new Template(Type.Class, baseTemplate) {
+        String name() { return "Identity"; }
+        String methodTemplate() {
+          return
+            " public %1$s %2$s(%3$s %4$s, %5$s %6$s) {\n"
+          + "  return %4$s;\n"
+          + " }\n";
+        }
+      };
+      static final Template commonTemplate = new Template(Type.Class, baseTemplate) {
+        String name() { return "Common"; }
+        String methodTemplate() {
+          return
+            " public %1$s %2$s(%3$s %4$s, %5$s %6$s) {\n"
+          + "  return $%2$s(%4$s, %6$s);\n"
+          + " }\n";
+        }
+        String implTemplate() {
+          return
+            " protected abstract %1$s $%2$s(%3$s %4$s, %5$s %6$s);\n";
+        }
+      };
+      static final Template newInstanceTemplate = new Template(Type.Class, baseTemplate) {
+        String name() { return "NewInstance"; }
+        boolean hasNodeMethod() { return false; }
+        String methodTemplate() {
+          return
+            " public %1$s %2$s(%3$s %4$s, %5$s %6$s) {\n"
+          + "  return new %3$s(0);\n"
+          + " }\n";
+        }
+      };
+      // Custom solution until JavaCC supports http://java.net/jira/browse/JAVACC-235
+      static final Template genericTemplate = new Template(Type.Interface) {
+        String name() { return "Generic"; }
+        boolean isGeneric() { return true; }
+        String methodTemplate() {
+          return
+            " public R _%2$s(%3$s %4$s, D %6$s);\n";
+        }
+      };
+      static final Template adapterGenericTemplate = new Template(Type.Class, baseTemplate, genericTemplate) {
+        String name() { return "AdapterGeneric"; }
+        String methodTemplate() {
+          return
+            " public %1$s %2$s(%3$s %4$s, %5$s %6$s) {\n"
+          + "  return _%2$s(%4$s, (D) %6$s);\n"
+          + " }\n";
+        }
+      };
+      static final Template nullGenericTemplate = new Template(Type.Class, baseTemplate, genericTemplate, adapterGenericTemplate) {
+        String name() { return "NullGeneric"; }
+        String methodTemplate() {
+          return
+            " public R _%2$s(%3$s %4$s, D %6$s) {\n"
+          + "  return null;\n"
+          + " }\n";
+        }
+      };
+      static final Template commonGenericTemplate = new Template(Type.Class, baseTemplate, genericTemplate, adapterGenericTemplate) {
+        String name() { return "CommonGeneric"; }
+        String methodTemplate() {
+          return
+            " public R _%2$s(%3$s %4$s, D %6$s) {\n"
+          + "  return $%2$s(%4$s, %6$s);\n"
+          + " }\n";
+        }
+        String implTemplate() {
+          return
+            " protected abstract R $%2$s (%3$s %4$s, D %6$s);\n";
+        }
+      };
+    }
+
+    public OutputVisitor(StringBuilder writer, Template template) {
+      this.writer = writer;
+      this.template = template;
+    }
+
+    public String getClassName() {
+      return className;
+    }
+
+    private void print(String s) {
+      writer.append(s);
+    }
+
+    public Object visit(ASTCompilationUnit node, Object data) {
+      print(preamble);
+      node.childrenAccept(this, data);
+
+      return null;
+    }
+    public Object visit(ASTPackageDeclaration node, Object data) {
+      String p = String.format(packageTempl, node.getValue());
+      print(p);
+
+      return null;
+    }
+    public Object visit(ASTDeclarationList node, Object data) {
+      node.childrenAccept(this, data);
+
+      return null;
+    }
+    public Object visit(ASTImportDeclaration node, Object data) {
+      String i = String.format(importTempl, node.getValue());
+      print(i);
+
+      return null;
+    }
+    public Object visit(ASTInterfaceDeclaration node, Object data) {
+      ASTIdentifier id = (ASTIdentifier) node.get(0);
+      // ASTNameList _extends = (ASTNameList) node.get(1);
+      ASTDeclarationList methods = (ASTDeclarationList) node.get(2);
+
+      this.className = template.id(id.<String>getValue());
+      String c = template.declaration(id.<String>getValue());
+      print(suppressTempl);
+      print(c);
+      print("{\n");
+        methods.jjtAccept(this, data);
+      print("}\n");
+
+      return null;
+    }
+    public Object visit(ASTMethodDeclaration node, Object data) {
+      ASTName result = (ASTName) node.get(0);
+      ASTIdentifier id = (ASTIdentifier) node.get(1);
+      ASTFormalParameters formals = (ASTFormalParameters) node.get(2);
+      // ASTNameList exceptions = (ASTNameList) node.get(3);
+
+      boolean isnode = template.getNodeName().equals(formals.get(0).get(0).getValue());
+      if (isnode) {
+        String t2 = template.implTemplate();
+        String m2 = String.format(t2,
+          result.getValue(), id.getValue(),
+          formals.get(0).get(0).getValue(),
+          formals.get(0).get(1).getValue(),
+          formals.get(1).get(0).getValue(),
+          formals.get(1).get(1).getValue());
+        print(m2);
+      }
+
+      if (! isnode || template.hasNodeMethod()) {
+        String t1 = template.methodTemplate();
+        String m1 = String.format(t1,
+          result.getValue(), id.getValue(),
+          formals.get(0).get(0).getValue(),
+          formals.get(0).get(1).getValue(),
+          formals.get(1).get(0).getValue(),
+          formals.get(1).get(1).getValue());
+        print(m1);
+      }
+
+      return null;
+    }
+    // unused visit() methods
+    public Object visit(SimpleNode node, Object data) {
+      return null;
+    }
+    public Object visit(ASTEmptyExpression node, Object data) {
+      return null;
+    }
+    public Object visit(ASTIdentifier node, Object data) {
+      return null;
+    }
+    public Object visit(ASTFormalParameters node, Object data) {
+      return null;
+    }
+    public Object visit(ASTFormalParameter node, Object data) {
+      return null;
+    }
+    public Object visit(ASTName node, Object data) {
+      return null;
+    }
+    public Object visit(ASTNameList node, Object data) {
+      return null;
+    }
+  }
+}
+
+PARSER_END(ToolsParser)
+
+
+SKIP: {
+  " " | "\t" | "\n" | "\r" | "\f"
+}
+
+MORE: {
+  "//" : IN_SINGLE_LINE_COMMENT
+| "/*" : IN_MULTI_LINE_COMMENT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN: {
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+
+<IN_MULTI_LINE_COMMENT>
+SPECIAL_TOKEN: {
+  <MULTI_LINE_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_SINGLE_LINE_COMMENT,IN_MULTI_LINE_COMMENT>
+MORE: {
+  < ~[] >
+}
+
+TOKEN: {
+  < ABSTRACT: "abstract" >
+| < EXTENDS: "extends" >
+| < FINAL: "final" >
+| < IMPORT: "import" >
+| < INTERFACE: "interface" >
+| < PACKAGE: "package">
+| < PUBLIC: "public" >
+| < THROWS: "throws" >
+| < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+| < #LETTER: ["a"-"z", "A"-"Z", "$", "_"] >
+| < #DIGIT: ["0"-"9"] >
+| < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < LBRACKET: "[" >
+| < RBRACKET: "]" >
+| < SEMICOLON: ";" >
+| < COMMA: "," >
+| < DOT: "." >
+| < STAR: "*" >
+}
+
+ASTCompilationUnit CompilationUnit() #CompilationUnit : {}
+{
+  [ PackageDeclaration() ]  #EmptyExpression(jjtree.nodeArity() == 0)
+  ( ImportDeclaration() )*  #DeclarationList(true)
+  ( InterfaceDeclaration() )
+  <EOF>
+  { return jjtThis; }
+}
+
+void Identifier() #Identifier : {Token t;}
+{
+  t = <IDENTIFIER>
+  { jjtThis.setValue(t.image); }
+}
+
+String JavaName() : {String name; Token t;}
+{
+  t = <IDENTIFIER> { name = t.image; }
+  ( LOOKAHEAD(2) "." t = <IDENTIFIER> { name += "." + t.image; } )*
+  { return name; }
+}
+
+void Name() #Name : {String name;}
+{
+  name = JavaName()
+  { jjtThis.setValue(name); }
+}
+
+void PackageDeclaration() #PackageDeclaration : {String name;}
+{
+  "package" name = JavaName() ";"
+  { jjtThis.setValue(name); }
+}
+
+void ImportDeclaration() #ImportDeclaration : {String name;}
+{
+  "import" (name = JavaName() [ "." "*" { name += ".*"; } ]) ";"
+  { jjtThis.setValue(name); }
+}
+
+void InterfaceDeclaration() #InterfaceDeclaration : {}
+{
+  ( "abstract" | "public" )*
+  "interface" Identifier() [ "extends" NameList() ] #NameList(jjtree.nodeArity() == 0)
+  "{" ( MethodDeclaration() )* #DeclarationList(true) "}"
+}
+
+void MethodDeclaration() #MethodDeclaration : {}
+{
+  ( "public" | "abstract" )*
+  Name() Identifier() FormalParameters()
+  [ "throws" NameList() ] #NameList(jjtree.nodeArity() == 0)
+  [ ";" ]
+}
+
+void FormalParameters() #FormalParameters : {}
+{
+  "(" FormalParameter() "," FormalParameter() ")"
+}
+
+void FormalParameter() #FormalParameter : {}
+{
+  [ "final" ] Name() Identifier()
+}
+
+void NameList() #NameList : {String name; java.util.List<String> names = new java.util.ArrayList<String>();}
+{
+  name = JavaName() { names.add(name); } ( "," name = JavaName() { names.add(name); } )*
+  { jjtThis.setValue(names); }
+}

@@ -1,0 +1,64 @@
+<chapter id="richtext">
+
+
+   <title condition="swf">Rich Text</title>
+
+   <section>
+      <title>&lt;rte&gt;: Rich Text Editor</title>
+      <para>OpenLaszlo provides capabilities for setting HTML text attributes using the
+            <literal>&lt;rte&gt;</literal> component.</para>
+      <para>The <literal>&lt;rte&gt;</literal> component uses the dijit.Editor from the dojo
+         toolkit. For more information about the dijit.Editor, see <ulink
+            url="http://www.dojotoolkit.org/reference-guide/dijit/Editor.html#dijit-editor"
+            >dijit.Editor</ulink>. For detailed information about the component, see the <ulink
+            url="../reference/lz.rte.html">Reference</ulink>.</para>
+      <para>The simplest way to use the RTE is with the defaults:</para>
+      <example role="live-example">
+         <title><literal>&lt;rte&gt;</literal> component</title>
+         <programlisting language="lzx">
+            <textobject><textdata fileref="programs/rtedefaults.lzx"/></textobject> 
+         </programlisting>
+      </example>
+      <para> The following example shows the RTE with limited toolbar plugins. The list of toolbar
+         plugins is a comma-separated list. A '|' puts a seaparator between groups of similar
+         options. A '||' will force a linebreak in the toolbar. </para>
+      <example role="live-example">
+         <title>Limiting <literal>&lt;rte&gt;</literal> plugins</title>
+         <programlisting language="lzx">
+            <textobject><textdata fileref="programs/rtelimitplugins.lzx"/></textobject> 
+         </programlisting>
+      </example>
+      <para>You can add custom buttons to the rte component. Custom buttons are placed above the
+         editor. The first argument to <literal>addButton()</literal> is the list of properties to
+         set in a HTML <literal>&lt;input&gt;</literal> element.</para>
+      <example role="live-example">
+         <title>Adding custom buttons to the <literal>&lt;rte&gt;</literal> component</title>
+         <programlisting language="lzx">
+         <textobject><textdata fileref="programs/rtecustombuttons.lzx"/></textobject> 
+      </programlisting>
+      </example>
+      <para>The following example shows how you can add a custom image button to the rte component.
+         This demonstrates how you can use an image button instead of text.</para>
+      <example role="live-example">
+         <title>Adding a custom image to the <literal>&lt;rte&gt;</literal> component</title>
+         <programlisting language="lzx">
+            <textobject><textdata fileref="programs/rteaddimage.lzx"/></textobject> 
+         </programlisting>
+      </example>
+      <para>The following example shows how you can add a custom wrapper file.</para>
+      <example role="live-example">
+         <title>Using a custom wrapper with the <literal>&lt;rte&gt;</literal> component</title>
+         <programlisting language="lzx">
+            <textobject><textdata fileref="programs/rtecustomwrapper.lzx"/></textobject> 
+         </programlisting>
+      </example>
+      <para>The following example shows how you can emulate pluggins.</para>
+      <example role="live-example">
+         <title>Emulating plugins with the <literal>&lt;rte&gt;</literal> component</title>
+         <programlisting language="lzx">
+            <textobject><textdata fileref="programs/rteemulatepluggins.lzx"/></textobject> 
+         </programlisting>
+      </example>
+   </section>
+
+</chapter>

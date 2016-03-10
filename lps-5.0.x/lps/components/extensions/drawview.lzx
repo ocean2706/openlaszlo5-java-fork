@@ -1,0 +1,528 @@
+<!---
+
+    @copyright Copyright 2001-2013 Laszlo Systems, Inc.  All Rights Reserved.
+               Use is subject to license terms.
+
+    @access public
+    @affects lzdrawview
+    @topic LFC
+    @subtopic Views
+  -->
+<library>
+  <interface name="drawview" extends="view">
+
+    <doc>
+      <tag name="shortdesc"><text>Adds procedural drawing APIs to view.</text></tag>
+      <text>
+        <p><tagname>drawview</tagname> adds procedural drawing APIs to <sgmltag class="element" role="LzView">&lt;view&gt;</sgmltag></p>
+
+        <p><tagname>drawview</tagname> implements a subset of the WHATWG drawing APIs, which can be found at:
+        <a href="http://www.whatwg.org/specs/web-apps/current-work/#the-canvas-element">http://www.whatwg.org/specs/web-apps/current-work/#the-canvas-element</a>
+        </p>
+
+        <example><programlisting class="code">
+        &lt;canvas&gt;
+            &lt;drawview width="500" height="300"&gt;
+                &lt;handler name="oncontext"&gt;
+                    this.moveTo(100, 100);
+                    this.lineTo(100, 200);
+                    this.quadraticCurveTo(150, 250, 200, 200);
+                    this.closePath();
+
+                    this.fillStyle = 0x0000ff;
+                    this.globalAlpha = .5;
+                    this.fill();
+
+                    this.strokeStyle = 0xffff00;
+                    this.lineWidth = 5;
+                    this.stroke();
+
+                    var g = this.createRadialGradient(75, 75, .7, 300, 300, 0)
+                    this.globalAlpha = 0;
+                    g.addColorStop(0, 0x000000);
+                    this.globalAlpha = 1;
+                    g.addColorStop(1, 0xffffff);
+                    this.fillStyle = g;
+                    this.fill();
+
+                    this.strokeStyle = 0x000000;
+                    this.lineWidth = 0;
+                    this.stroke();
+
+                    this.beginPath();
+                    this.lineTo(75, 0);
+                    this.lineTo(75, 75);
+                    this.lineTo(0, 75);
+                    this.lineTo(0, 0);
+                    this.closePath();
+
+                    var g = this.createLinearGradient(0, 0, 75, 75)
+                    this.globalAlpha = 0;
+                    g.addColorStop(0, 0x000000);
+                    this.globalAlpha = 1;
+                    g.addColorStop(1, 0xffffff);
+                    this.fillStyle = g;
+                    this.fill();
+                    
+                    this.beginPath();
+                    this.moveTo(300, 0);
+                    this.lineTo(450, 0);
+                    this.lineTo(450, 150);
+                    this.lineTo(300, 150);
+                    this.closePath();
+                    
+                    //different args between dhtml and swf
+                    var g;
+                    if ($dhtml) {
+                        g = this.createRadialGradient(375,75,0,375,75,75);
+                    } else {
+                        g = this.createRadialGradient(450,0,1,300,150,0);
+                    }
+                    
+                    this.globalAlpha = 1;
+                    g.addColorStop(0, 0x000000);
+                    this.globalAlpha = 0;
+                    g.addColorStop(1, 0x000000);
+                    this.fillStyle = g;
+                    this.globalAlpha = 1;
+                    this.fill();
+                &lt;/handler&gt;
+            &lt;/drawview&gt;
+        &lt;/canvas&gt;
+        </programlisting></example>
+
+        <p><classname>drawview</classname> extends <sgmltag class="element" role="LzView">&lt;view&gt;</sgmltag>,
+        which is the fundamental visual class of LZX.</p>
+      </text>
+    </doc>
+
+    <!--- Gives an alpha value that is applied to shapes and images
+          before they are composited onto the canvas. The valid range of
+          values is from 0.0 (fully transparent) to 1.0 (no additional
+          transparency). If the attribute is set to values outside this range,
+          it is ignored. When the context is created, the globalAlpha
+          attribute initially has the value 1.0.
+          @type Number
+          @lzxtype number
+          @lzxdefault 1.0
+          @access public
+    -->
+    <attribute name="globalAlpha" value="1" type="number"/>
+
+    <!--- Gives the default width of lines, in coordinate space units.
+          Negative values are ignored.  0 draws hairlines in swf - lines that
+          are always 1 pixel wide even when scaled.
+          @type Number
+          @lzxtype number
+          @lzxdefault 1
+          @access public
+    -->
+    <attribute name="lineWidth" value="1" type="number"/>
+
+    <!--- Gives the default lineCap value for lines. Round for consistency between swf and dhtml.
+          @type String
+          @lzxtype "butt" | "round" | "square"
+          @lzxdefault "butt"
+          @access public
+    -->
+    <attribute name="lineCap" value="butt" type="string"/>
+
+    <!--- Gives the default lineJoin value for lines. Round for consistency between swf and dhtml.
+          @type String
+          @lzxtype "round" | "bevel" | "miter"
+          @lzxdefault "miter"
+          @access public
+    -->
+    <attribute name="lineJoin" value="miter" type="string"/>
+
+    <!--- Gives the default miterLimit value for lines.
+          @type Number
+          @lzxtype number
+          @lzxdefault 10
+          @access public
+    -->
+    <attribute name="miterLimit" value="10" type="number"/>
+
+    <!--- Represents the colour to use for the lines around shapes.  Specified as a hexadecimal number (0xffffff) or a CSS string ('#ff00ff' or '#f0f').
+        @type String
+        @lzxtype string
+        @lzxdefault "#000000"
+        @access public
+    -->
+    <attribute name="strokeStyle" value="#000000" type="string"/>
+
+    <!--- Represents the colour or style to use for the fill inside the shapes. Can be either a hexadecimal number (0xffffff), a CSS string ('#ff00ff' or '#f0f'), or a CanvasGradient/LzCanvasGradient.
+        @type String
+        @lzxtype string
+        @lzxdefault "#000000"
+        @access public
+    -->
+    <attribute name="fillStyle" value="#000000" type="string"/>
+
+    <!--- If true, the bitmap result will be cached where possible. (swf-only)
+      @access public
+    -->
+    <attribute name="cachebitmap" value="true" type="boolean"/>
+
+    <!--- If true, the size of the drawview will be set dynamically based on its contents, where possible. (swf-only)
+      @access public
+    -->
+    <attribute name="measuresize" value="true" type="boolean"/>
+
+    <!--- If true, lines will be offset by lineWidth / 2 to appear aliased (dhtml-only)
+      @access public
+    -->
+    <attribute name="aliaslines" value="false" type="boolean"/>
+
+    <!---
+      Resets the list of subpaths to an empty list, and calls moveTo() with the point (0,0).
+    -->
+    <method name="beginPath"/>
+
+    <!---
+      Adds a straight line from the current position to the first point in the last subpath and marks the subpath as closed, if the last subpath isn't closed, and if it has more than one point in its list of points. If the last subpath is not open or has only one point, it does nothing.
+    -->
+    <method name="closePath"/>
+
+    <!---
+      Sets the current position to the given coordinate and creates a new subpath with that point as its first (and only) point. If there was a previous subpath, and it consists of just one point, then that subpath is removed from the path.
+      @param Number x: x position to move to
+      @param Number y: y position to move to
+    -->
+    <method name="moveTo" args="x, y"/>
+
+    <!---
+      Adds the given coordinate (x, y) to the list of points of the subpath, and connects the current position to that point with a straight line. It then sets the current position to the given coordinate (x, y).
+      @param Number x: x position to draw to
+      @param Number y: y position to draw to
+    -->
+    <method name="lineTo" args="x, y"/>
+
+    <!---
+      Adds the given coordinate (x, y) to the list of points of the subpath, and connects the current position to that point with a quadratic curve with control point (cpx, cpy). It then sets the current position to the given coordinate (x, y).
+      @param Number cpx: curve control point's x position
+      @param Number cpy: curve control point's y position
+      @param Number x: x position to draw to
+      @param Number y: y position to draw to
+    -->
+    <method name="quadraticCurveTo" args="cpx, cpy, x, y"/>
+
+    <!---
+      Adds the given coordinate (x, y) to the list of points of
+      the subpath, and connects the two points with a bezier curve with control
+      points (cp1x, cp1y) and (cp2x, cp2y). It then sets the current position to
+      the given coordinate (x, y).
+
+      @param Number cp1x: X value of control point 1
+      @param Number cp1y: Y value of control point 1
+      @param Number cp2x: X value of control point 2
+      @param Number cp2y: Y value of control point 2
+      @param Number x: X value of endpoint
+      @param Number y: Y value of endpoint
+    -->
+    <method name="bezierCurveTo" args="cp1x, cp1y, cp2x, cp2y, x, y"/>
+
+    <!---
+      Fills each subpath of the current path in turn, using fillStyle, and using the non-zero winding number rule. Open subpaths are implicitly closed when being filled (without affecting the actual subpaths).
+      Note that closePath() is called before the line is filled.
+    -->
+    <method name="fill" />
+
+    <!---
+      Strokes each subpath of the current path in turn, using the strokeStyle and lineWidth attributes.
+    -->
+    <method name="stroke" />
+
+    <!---
+      Clears drawing area
+    -->
+    <method name="clear" />
+
+    <!---
+      Takes four arguments, representing the start point (x0, y0) and end point (x1, y1) of the gradient, in coordinate space units, and returns an object representing a linear gradient initialised with that line.
+      Linear gradients are rendered such that at the starting point on the canvas the colour at offset 0 is used, that at the ending point the color at offset 1 is used, that all points on a line perpendicular to the line between the start and end points have the colour at the point where those two lines cross. (Of course, the colours are only painted where the shape they are being painted on needs them.)
+
+      @param Number x0: Starting x position
+      @param Number y0: Starting y position
+      @param Number x1: Ending x position
+      @param Number y1: Ending y position
+      @return LzCanvasGradient: Opaque class used to add color/offset/alpha steps - see LzCanvasGradient.addColorStop();
+    -->
+    <method name="createLinearGradient" args="x0, y0, x1, y1" />
+
+    <!---
+      Takes six arguments, the first three representing the start point (x0, y0) and rotation r0, and the last three representing the end point (x1, y1) and radius r1. The values are in coordinate space units.
+      Rotation doesn't appear to work for radial gradients.  Even so, it can be set by specifying r0 in radians.  r1 is ignored.
+
+      @param Number x0: Starting x position
+      @param Number y0: Starting y position
+      @param Number r0: Rotation of the gradient - not working
+      @param Number x1: Ending x position
+      @param Number y1: Ending y position
+      @param Number r1: Ignored
+      @return LzCanvasGradient: Opaque class used to add color/offset/alpha steps - see addColorStop();
+    -->
+    <method name="createRadialGradient" args="x0, y0, r0, x1, y1, r1" />
+
+    <!---
+      Adds an arc to the current path. The arc is a segment of a circle that has radius as given.
+      The circle segment is determined by the two angles startAngle and endAngle and begins at the given coordinate (x,y).
+      If anticlockwise is true, the arc is drawn counter-clockwise, otherwise it is drawn counter-clockwise (anti-clockwise).
+
+      @param Number x: Starting x position
+      @param Number y: Starting y position
+      @param Number radius: Radius
+      @param Number startAngle: Angle to start in radians
+      @param Number endAngle: Angle to end in radians
+      @param Number anticlockwise: counter-clockwise if true, clockwise otherwise
+    -->
+    <method name="arc" args="x, y, radius, startAngle, endAngle, anticlockwise" />
+
+    <!---
+      Rect creates a new subpath containing just the rectangle with top left coordinate (x, y), width w and height h.
+      Based on mc.drawRect() - by Ric Ewing (ric@formequalsfunction.com)
+
+      @param Number x: starting x position
+      @param Number y: starting y position
+      @param Number width: Width
+      @param Number height: Height
+      @param Number topleftradius: Optional radius of rounding for topleft corner.  If no other radius parameters are specified, topleftradius is used for all corners.
+      @param Number toprightradius: Optional radius of rounding for topright corner.
+      @param Number bottomrightradius: Optional radius of rounding for bottomright corner.
+      @param Number bottomleftradius: Optional radius of rounding for bottomleft corner.
+    -->
+    <method name="rect" args="x,y,width,height=0,topleftradius=0,toprightradius=null,bottomrightradius=null,bottomleftradius=null" />
+
+    <!---
+      Draws an oval at the origin x, y with a radius radius.  If yRadius is specified, radius is the x radius of the oval.
+      Based on mc.drawOval() - by Ric Ewing (ric@formequalsfunction.com) - version 1.1 - 4.7.2002
+
+      @param Number x: Starting x position
+      @param Number y: Starting y position
+      @param Number radius: The radius of the oval. If [optional] yRadius is defined, r is the x radius.
+      @param Number yRadius: Optional y radius of the oval
+    -->
+    <method name="oval" args="x, y, radius, yRadius" />
+
+  </interface> <!-- drawview -->
+
+  <!-- these methods are shared across runtimes -->
+  <script when="immediate"><![CDATA[
+    mixin DrawviewShared {
+        function DrawviewShared (parent:LzNode? = null, attrs:Object? = null, children:Array? = null, instcall:Boolean = false) {
+            super(parent, attrs, children, instcall);
+        }
+        function lineTo(x:Number,y:Number) { }
+        function moveTo(x:Number,y:Number) { }
+        function quadraticCurveTo(cx:Number, cy:Number, px:Number, py:Number) {}
+
+        // factor used to convert radians to degrees
+        var __radtodegfactor:Number = 180 / Math.PI;
+
+/* From http://www.w3.org/TR/html5/the-canvas-element.html#dom-context-2d-arc :
+The arc(x, y, radius, startAngle, endAngle, anticlockwise) method draws an arc. If the context has any subpaths, then the method must add a straight line from the last point in the subpath to the start point of the arc. In any case, it must draw the arc between the start point of the arc and the end point of the arc, and add the start and end points of the arc to the subpath. The arc and its start and end points are defined as follows:
+
+Consider a circle that has its origin at (x, y) and that has radius radius. The points at startAngle and endAngle along this circle's circumference, measured in radians clockwise from the positive x-axis, are the start and end points respectively.
+
+If the anticlockwise argument is false and endAngle-startAngle is equal to or greater than 2π, or, if the anticlockwise argument is true and startAngle-endAngle is equal to or greater than 2π, then the arc is the whole circumference of this circle.
+
+Otherwise, the arc is the path along the circumference of this circle from the start point to the end point, going anti-clockwise if the anticlockwise argument is true, and clockwise otherwise. Since the points are on the circle, as opposed to being simply angles from zero, the arc can never cover an angle greater than 2π radians. If the two points are the same, or if the radius is zero, then the arc is defined as being of zero length in both directions.
+
+Negative values for radius must cause the implementation to raise an INDEX_SIZE_ERR exception.
+*/
+        // 
+        function arc(x, y, radius, startAngle, endAngle, anticlockwise = false) {
+            if (startAngle == null || endAngle == null) return;
+
+            // The points at startAngle and endAngle along this circle's circumference, measured in radians clockwise from the positive x-axis, are the start and end points respectively.
+            // Invert the angles
+            startAngle = - startAngle;
+            endAngle = - endAngle;
+
+
+            var arc;
+
+            if ((anticlockwise == false && endAngle - startAngle >= 2 * Math.PI) || (anticlockwise == true && startAngle - endAngle >= 2 * Math.PI)) {
+                //If the anticlockwise argument is false and endAngle-startAngle is equal to or greater than 2π, or, if the anticlockwise argument is true and startAngle-endAngle is equal to or greater than 2π, then the arc is the whole circumference of this circle.
+                arc = 360;
+            } else if (startAngle == endAngle || radius == 0) {
+                //If the two points are the same, or if the radius is zero, then the arc is defined as being of zero length in both directions.
+                arc = 0;
+            } else {
+                //Otherwise, the arc is the path along the circumference of this circle from the start point to the end point, going anti-clockwise if the anticlockwise argument is true, and clockwise otherwise.
+                var startDeg = startAngle * this.__radtodegfactor;
+                var endDeg = endAngle * this.__radtodegfactor;
+
+                if (anticlockwise) {
+                    if (endDeg < startDeg) {
+                        arc = - ((startDeg - endDeg) - 360);
+                    } else {
+                        arc = (endDeg - startDeg) + 360;
+                    }
+                } else {
+                    if (endDeg < startDeg) {
+                        arc = - ((startDeg - endDeg) + 360);
+                    } else {
+                        arc = (endDeg - startDeg) - 360;
+                    }
+                }
+
+
+
+                while (arc < -360) {
+                    arc += 360;
+                }
+                while (arc > 360) {
+                    arc -= 360;
+                }
+                //console.log('_drawArc', arc, startDeg, endDeg, anticlockwise);
+            }
+
+            // Since the points are on the circle, as opposed to being simply angles from zero, the arc can never cover an angle greater than 2π radians.  
+
+            // TODO:
+            //If the context has any subpaths, then the method must add a straight line from the last point in the subpath to the start point of the arc.
+            var sx:Number = x + radius*Math.cos(startAngle);
+            var sy:Number = y + radius*Math.sin(2 * Math.PI - startAngle);
+            this.moveTo(sx, sy);
+            //retain the center of the arc as the center point passed in.
+            this._drawArc(x, y, radius, arc, startAngle * this.__radtodegfactor);
+        }
+
+        function rect(x,y,width,height,topleftradius=0,toprightradius=null,bottomrightradius=null,bottomleftradius=null) {
+            // use shared method
+            LzKernelUtils.rect(this,x,y,width,height,topleftradius,toprightradius,bottomrightradius,bottomleftradius);
+        }
+
+        function oval(x, y, radius, yRadius = NaN) {
+            // if only yRadius is undefined, yRadius = radius
+            if (isNaN(yRadius)) {
+                yRadius = radius;
+            }
+            const s:Number = (radius < 10 && yRadius < 10) ? 5 : 8;
+            // covert to radians for our calculations
+            const theta:Number = Math.PI/ (s / 2);
+            // calculate the distance for the control point
+            const xrCtrl:Number = radius/Math.cos(theta/2);
+            const yrCtrl:Number = yRadius/Math.cos(theta/2);
+            // start on the right side of the circle
+            this.moveTo(x+radius, y);
+            // init variables
+            var angle:Number = 0, angleMid:Number, px:Number, py:Number, cx:Number, cy:Number;
+            // this loop draws the circle in n segments
+            for (var i:int = 0; i<s; i++) {
+                // increment our angles
+                angle += theta;
+                angleMid = angle-(theta/2);
+                // calculate our control point
+                cx = x+Math.cos(angleMid)*xrCtrl;
+                cy = y+Math.sin(angleMid)*yrCtrl;
+                // calculate our end point
+                px = x+Math.cos(angle)*radius;
+                py = y+Math.sin(angle)*yRadius;
+                // draw the circle segment
+                this.quadraticCurveTo(cx, cy, px, py);
+            }
+            return {x:px, y:py};
+        }
+
+        function _drawArc(x:Number, y:Number, radius:Number, arc:Number, startAngle:Number, yRadius:Number = NaN) :Object {
+            // if yRadius is undefined, yRadius = radius
+            if (isNaN(yRadius)) {
+                yRadius = radius;
+            }
+            // no sense in drawing more than is needed :)
+            if (Math.abs(arc)>360) {
+                arc = 360;
+            }
+            // Flash uses 8 segments per circle, to match that, we draw in a maximum
+            // of 45 degree segments. First we calculate how many segments are needed
+            // for our arc.
+            const segs:Number = Math.ceil(Math.abs(arc)/45);
+            // Init vars
+            var bx:Number, by:Number;
+            // if our arc is larger than 45 degrees, draw as 45 degree segments
+            // so that we match Flash's native circle routines.
+            if (segs > 0) {
+                // Now calculate the sweep of each segment
+                const segAngle:Number = arc/segs;
+                // The math requires radians rather than degrees. To convert from degrees
+                // use the formula (degrees/180)*Math.PI to get radians.
+                const theta:Number = -(segAngle/180)*Math.PI;
+                // convert angle startAngle to radians
+                var angle:Number = -(startAngle/180)*Math.PI;
+                var angleMid:Number, cx:Number, cy:Number;
+                // Loop for drawing arc segments
+                for (var i:int = 0; i<segs; i++) {
+                    // increment our angle
+                    angle += theta;
+                    // find the angle halfway between the last angle and the new
+                    angleMid = angle-(theta/2);
+                    // calculate our end point
+                    bx = x+Math.cos(angle)*radius;
+                    by = y+Math.sin(angle)*yRadius;
+                    // calculate our control point
+                    cx = x+Math.cos(angleMid)*(radius/Math.cos(theta/2));
+                    cy = y+Math.sin(angleMid)*(yRadius/Math.cos(theta/2));
+                    // draw the arc segment
+                    this.quadraticCurveTo(cx, cy, bx, by);
+                }
+            }
+            // In the native draw methods the user must specify the end point
+            // which means that they always know where they are ending at, but
+            // here the endpoint is unknown unless the user calculates it on their
+            // own. Lets be nice and let save them the hassle by passing it back.
+            return {x:bx, y:by};
+        }
+
+        function distance(p0, p1) {
+            // These would be useful generally, but put them inside the
+            // function so they don't pollute the general namespace.
+            var dx:Number = p1.x - p0.x;
+            var dy:Number = p1.y - p0.y;
+            return Math.sqrt(dx*dx+dy*dy);
+        }
+
+        function intersection(p0, p1, p2, p3) {
+                // returns null if they're collinear and non-identical
+                // returns -1 if they're collinear and identical
+                var u:Number = (p3.x-p2.x)*(p0.y-p2.y) - (p3.y-p2.y)*(p0.x-p2.x);
+                var d:Number = (p3.y-p2.y)*(p1.x-p0.x) - (p3.x-p2.x)*(p1.y-p0.y);
+                if (d == 0) {
+                    if (u == 0) {
+                        return -1;//identical
+                    } else {
+                        return null;//non-identical
+                    }
+                }
+                u /= d;
+                return {x: p0.x + (p1.x-p0.x) * u,
+                        y: p0.y + (p1.y-p0.y) * u};
+        }
+
+        function midpoint(p0, p1) {
+            return {x: (p0.x+p1.x)/2, y: (p0.y+p1.y)/2};
+        }
+
+        var globalAlpha:Number = 1;
+        var lineWidth:Number = 1;
+        var lineCap:String = 'butt';
+        var lineJoin:String = 'miter';
+        var miterLimit:Number = 10;
+        var strokeStyle:* = '#000000';
+        var fillStyle:* = '#000000';
+    }
+  ]]></script>
+
+  
+  <!-- runtime-specific implementations -->
+  <switch>
+    <when runtime="dhtml">        
+        <include href="drawview/drawview-dhtml.lzx" />  
+    </when>
+    <otherwise>
+        <include href="drawview/drawview-as3.lzx" />      
+    </otherwise>
+  </switch>
+  
+</library>

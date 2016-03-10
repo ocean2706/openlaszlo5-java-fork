@@ -1,0 +1,293 @@
+/**
+  *
+  * @copyright Copyright 2001-2011 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  *
+  * @access public
+  * @affects lzbrowserkernel
+  * @topic LFC
+  * @subtopic Views
+  */
+
+/**
+  * @access private
+  */
+class LzBrowserKernel {
+
+#passthrough (toplevel:true) {
+  import flash.net.navigateToURL;
+  import flash.net.SharedObject;
+  import flash.net.URLRequest;
+  import flash.system.Capabilities;
+  import flash.system.Security;
+  import flash.system.System;
+  import flash.accessibility.Accessibility;
+}#
+
+/**
+  * Loads a URL in the browser, optionally in a target
+  * 
+  * @param String url: URL to load
+  * @param String target: Optionally specifies a named frame to display the contents of the URL.  Otherwise defaults to the current window.
+  * @param String features: Optional features to use in the new window.
+  */
+static function loadURL (url:String, target:String=null, features:String=null) :void {
+  if (target == null) target = '_self';
+  navigateToURL(new URLRequest(url), target);
+}
+
+
+/**
+  * Runs Javascript in the browser using a javascript: url, optionally in a
+  * target
+  * 
+  * @param String js: Javascrit string to execute
+  * @param String target: Optionally specifies a named frame to display the contents of the URL.
+  * By default, the javascript specified in 'js' is executed in the current
+  * browser frame .
+  */
+static function loadJS (js:String, target:String='_self') :void {
+  navigateToURL(new URLRequest('javascript:' + js + ';void(0);'), target);
+}
+
+
+/**
+  * Runs a Javascript method in the browser, optionally returning the result  
+  * 
+  * @param String js: Browser javascript method name to execute
+  * @param Function callback: Optional callback function to get the return value
+  * of the javascript call.  If false, the call will not be queued at app 
+  * startup time.
+  * @param Optional arguments to call
+  */
+static function callJS (...args) :* {
+    var js:String = args[0];// String js: Browser javascript to execute
+    var callback:* = (args.length > 1) ? args[1] : null;
+    //DojoExternalInterface.call.apply(null, args);
+    if (LzBrowserKernel.__jslocked == true) {
+        // queue during startup, except for false callbacks
+        if (callback != false) {
+            var o:Array = [];
+            for (var i:int = 0; i < args.length; i++) {
+                o[i] = args[i];
+            }
+            LzBrowserKernel.__jscallq.push(o);
+            //Debug.write('queued', LzBrowserKernel.__jscallq.length, o); 
+        }
+    } else {
+        // Clear DojoExternalInterface callback, since we're calling back below
+        args[1] = null;
+
+        var result = DojoExternalInterface.call.apply(null, args);
+        //Debug.write('calling with args real', args, result);
+
+        if (callback && callback instanceof Function) {
+            callback.call(null, result);
+        }
+
+        return result;
+    }
+}
+
+/**
+  * Runs a Javascript method in the browser, optionally returning the result  
+  * Used for LFC/internal calls 
+  */ 
+static function callJSInternal(...args) :* {
+    var result;
+    try {
+        result = DojoExternalInterface.call.apply(null, args);
+    } catch (e) {
+        // ignore
+    }
+    return result;
+}
+
+/** @access private */ 
+static var __jslocked :Boolean = true;
+/** @access private */ 
+static var __jscallq :Array = [];
+
+// called from DojoExternalInterface when it's ready
+/** @access private */ 
+static function __jsready () :void { 
+    //Debug.write('jsready', LzBrowserKernel.__jscallq);
+    LzBrowserKernel._dequeueJS();
+}
+
+/** @access private */ 
+static function _dequeueJS () :void {
+    LzBrowserKernel.__jslocked = false;
+    while (LzBrowserKernel.__jscallq.length > 0) {
+        LzBrowserKernel.callJS.apply(LzBrowserKernel, LzBrowserKernel.__jscallq.shift());
+    }
+}
+
+/**
+  * Sets the browser history to a specified offset.
+  * @access private
+  */
+static function setHistory(n:*) :void {
+    //Debug.write('__setHistory', n);
+    LzBrowserKernel.callJSInternal('lz.embed.history.set', null, n);
+}
+
+static function getPersistedObject(n:String) :SharedObject {
+    try {
+        return SharedObject.getLocal(n);
+    } catch (err:Error) {
+    }
+    return null;
+}
+
+/**
+  * Invoked by browser JavaScript to call a method
+  * @access private
+  */
+static function callMethod(js:*) :* { 
+    return lz.Utils.safeEval(js);
+}
+
+static var _os :String = null;
+static var _ver :String = null;
+
+/**
+  * Returns version information about the browser
+  */
+static function getVersion () :String {
+    if (!LzBrowserKernel._ver) {
+        var o:Array = Capabilities.version.split(' ');
+        LzBrowserKernel._os = o[0]; 
+        LzBrowserKernel._ver = o[1].split(',').join('.');
+    }
+    return LzBrowserKernel._ver;
+}
+
+/**
+  * Returns information about the operating system
+  */
+static function getOS () :String {
+    return Capabilities.os;
+}
+
+/**
+  * Returns the URL from which the application was loaded.
+  * @return String : the URL the swf was loaded from
+  * 
+  */
+static function getLoadURL () :String {
+  return LFCApplication.stage.loaderInfo.loaderURL;
+}
+
+
+static var __initargs:Object = null;
+static var __options:Object = null;
+
+/**
+ * This function returns values from the the request string that
+ * loaded the the lzx app. This can be used to communicate initialization 
+ * arguments to an lzx app without forcing it to load data.
+ *
+ * @param String name: The name of the key whose value to return.  If null, 
+ * returns an Object containing all initialization arguments.
+ *
+ * @return: The value for a key that appears in the request string 
+ * that loaded the the lzx app or an Object containing all values 
+ */
+static function getInitArg (name:String=null) :* {
+  if (! LzBrowserKernel.__initargs && LzBrowserKernel.__jslocked == false) {
+    var newargs = LzBrowserKernel.callJSInternal('eval', null, 'lz.embed.applications["' + LzBrowserKernel.getAppID() + '"].initargs');
+    if (newargs) {
+      // cache callJS results
+      LzBrowserKernel.__initargs = newargs;
+    }
+  }
+
+  var args = LzBrowserKernel.__initargs || LFCApplication.stage.loaderInfo.parameters;
+
+
+  if (args == null) {
+    return;
+  } else if (name == null) {
+    return args;
+  }
+  return args[name];
+}
+
+
+static function getLzOption (name:String=null) :* {
+  if (! LzBrowserKernel.__options && LzBrowserKernel.__jslocked == false) {
+    var newargs = LzBrowserKernel.callJSInternal('eval', null, 'lz.embed.applications["' + LzBrowserKernel.getAppID() + '"].options');
+    if (newargs) {
+      // cache callJS results
+      LzBrowserKernel.__options = newargs;
+    }
+  }
+
+  var args = LzBrowserKernel.__options || LFCApplication.stage.loaderInfo.parameters;
+
+  if (args == null) {
+    return;
+  } else if (name == null) {
+    return args;
+  }
+  return args[name];
+}
+
+/**
+  * This function returns the id the app was started with
+  * 
+  * @return String: The id the app was started with
+  */
+static function getAppID():String {
+  return LFCApplication.stage.loaderInfo.parameters.id
+}
+
+/**
+  * Turns the flash context menu on or off
+  * @keywords flashspecific private
+  * @param Boolean truefalse: boolean value - true for on, false for off.
+  */
+static function showMenu (truefalse:Boolean) :void {
+  LFCApplication.stage.showDefaultContextMenu = truefalse;  
+}
+
+
+/**
+  * Sets the system clipboard to the specified string
+  * 
+  * @param String str: String to set the system clipboard to
+  */
+static function setClipboard (str:String) :void {
+  System.setClipboard(str);
+}
+
+/**
+  * Determines if the a screen reader is active and the Flash player is focused
+  * @keywords flashspecific
+  * 
+  * @return: True if a screen reader is active and the Flash player is focused
+  */
+static function isAAActive () :Boolean {
+  return Capabilities.hasAccessibility && Accessibility.active;
+}
+
+/**
+  * Updates accessibility data
+  * @keywords flashspecific
+  * @access private
+  */
+static function updateAccessibility () :void {
+  Accessibility.updateProperties();
+}
+
+/**
+  * Updates accessibility data
+  * @keywords flashspecific
+  * @access private
+  */
+static function loadProxyPolicy (url:String) :void {
+  Security.loadPolicyFile(url);
+}
+
+} // End of LzBrowserKernel

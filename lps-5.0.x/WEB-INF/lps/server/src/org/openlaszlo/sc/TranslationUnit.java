@@ -1,0 +1,281 @@
+/* -*- mode: Java; c-basic-offset: 2; -*- */
+
+/***
+ * TranslationUnit.java
+ * Author: Don Anderson
+ * Description: A collector for the part of the Javascript
+ * output that corresponds to a single class definition,
+ * and thus as an input file to the third party compiler.
+ * Line numbers from the original source file are tracked and
+ * related to line numbers in the translation unit so that any compile
+ * errors from the third party compiler can be translated back
+ * to the original source line numbers.
+ */
+
+package org.openlaszlo.sc;
+
+import java.util.*;
+
+public class TranslationUnit
+{
+  private String name;                  // name of class
+  private StringBuffer text = new StringBuffer();
+  private SortedMap<Integer, SourceFileLine> lnums = new TreeMap<Integer, SourceFileLine>();
+  private int linenum = 1;
+  private int lineOffset = 0;   // size of preamble, that otherwise messes with our line mapping
+  private String srcFilename;   // name of associated source file, if applicable
+  private boolean isDefault = false; // stuff not within a class goes to default
+  private boolean isMain = false;    // designated classes, like LFCApplication
+  private Map<Integer, Object> streams = new HashMap<Integer, Object>(); // alternate streams, indexed by number
+  private int maxInserts = 0;          // bound the number of stream insert replacements
+  private boolean isClass = true;
+  private String lzxFilename = null;
+
+  // When these appear in the contents they will be replaced
+  // by the indicated stream whenever contents is retrieved.
+  public static final String INSERT_STREAM_MARK = "#insertStream(";
+  public static final String INSERT_END_MARK = ")";
+
+  public class SourceFileLine {
+    SourceFile sourcefile;
+    int line;
+
+    @Override
+    public String toString() {
+      return sourcefile.toString() + ": " + line;
+    }
+  }
+
+  public String getLZXFilename() {
+    return lzxFilename;
+  }
+
+  public long getLastModified() {
+    if (lzxFilename != null) {
+      return new java.io.File(lzxFilename).lastModified();
+    } else {
+      return 0L;
+    }
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public TranslationUnit() {
+    this(false);
+  }
+
+  public TranslationUnit(boolean isDefaultTranslationUnit) {
+    this.isDefault = isDefaultTranslationUnit;
+  }
+
+  public void setName(String name) {
+    this.name = name != null ? name.intern() : name;
+  }
+
+  public String getSourceFileName() {
+    return srcFilename;
+  }
+
+  public void setSourceFileName(String srcname) {
+    this.srcFilename = srcname.intern();
+  }
+
+  public void setLineOffset(int lineOffset) {
+    this.lineOffset = lineOffset;
+  }
+
+  /** Get text with any insertions resolved */
+  public String getContents() {
+    String result = text.toString();
+    for (int i=1; i<=maxInserts; i++) {
+      String mark = INSERT_STREAM_MARK + i + INSERT_END_MARK;
+      int markPos = result.indexOf(mark);
+      if (markPos >= 0) {
+        String before = result.substring(0, markPos);
+        String after = result.substring(markPos + mark.length());
+        Object insert = getStreamObject(i);
+        String text = "";
+        if (insert != null) {
+          if (insert instanceof String) {
+            text = (String)insert;
+          }
+          else if (insert instanceof TranslationUnit) {
+            text = ((TranslationUnit)insert).getContents();
+            insertLnums(countLines(before), countLines(text), ((TranslationUnit)insert).lnums);
+          }
+          else {
+            throw new RuntimeException("TranslationUnit.stream unsupported type" + insert.getClass().getName());
+          }
+        }
+        result = before + text + after;
+      }
+    }
+
+    return result;
+  }
+
+  /** Merge the lnums from another translation unit
+   */
+  public void insertLnums(int startline, int nlines, SortedMap<Integer, SourceFileLine> inserted) {
+
+    // from startline to the end, we must first shift all entries nlines.
+    // so we don't overwrite, we must go from the end to the beginning.
+    List<Integer> keys = new ArrayList<Integer>(lnums.keySet());
+    for (ListIterator<Integer> liter = keys.listIterator(); liter.hasPrevious(); ) {
+      Integer key = liter.previous();
+      int keyval = key.intValue();
+      if (keyval < startline) {
+        break;
+      }
+      lnums.put(keyval + nlines, lnums.remove(key));
+    }
+
+    // now insert the new entries, checking for out of bounds
+    for (Integer key : inserted.keySet()) {
+      int keyval = key.intValue();
+      if (keyval < 0 || keyval > nlines + 1) {
+        throw new IndexOutOfBoundsException("linenumber table entry out of range: " + keyval + " is not in (0, " + nlines + ")");
+      }
+      lnums.put(keyval + startline, inserted.get(key));
+    }
+  }
+
+  public boolean isDefaultTranslationUnit() {
+    return isDefault;
+  }
+
+  public boolean isMainTranslationUnit() {
+    return isMain;
+  }
+
+  public void setMainTranslationUnit(boolean value) {
+    isMain = value;
+  }
+
+  public boolean isClass() {
+    return isClass;
+  }
+
+  public void setIsClass(boolean isClass) {
+    this.isClass = isClass;
+  }
+
+  public void addText(String s) {
+    text.append(s);
+    linenum += countLines(s);
+  }
+
+  // Free the storage except for the classname, and line numbers map for error reporting
+  public void clearMost() {
+    text = null;
+    streams = null;
+  }
+
+  public int getTextLineNumber() {
+    return linenum;
+  }
+
+  public void addInsertStreamMarker(int streamNum) {
+    text.append(INSERT_STREAM_MARK + streamNum + INSERT_END_MARK);
+    if (streamNum > maxInserts)
+      maxInserts = streamNum;
+  }
+
+  public void addStreamText(int streamNum, String s) {
+    Integer key = Integer.valueOf(streamNum);
+    String cur = (String)streams.get(key);
+    if (cur == null)
+      cur = "";
+    cur += s;
+    streams.put(key, cur);
+  }
+
+  public void setStreamObject(int streamNum, Object o) {
+    Integer key = Integer.valueOf(streamNum);
+    Object cur = streams.get(key);
+    if (cur != null && cur != o) {
+      throw new RuntimeException("TranslationUnit.setStreamObject value should not already exist");
+    } 
+    if (cur != null) {
+      //      System.err.println("resetting streamobject "+streamNum + " on "+this+" to "+o);
+    }
+    streams.put(key, o);
+  }
+
+  public Object getStreamObject(int streamNum) {
+    Integer key = Integer.valueOf(streamNum);
+    return streams.get(key);
+  }
+
+  public void setInputLineNumber(int inputLinenum, SourceFile srcf) {
+    Integer key = Integer.valueOf(linenum);
+    SourceFileLine cur = lnums.get(key);
+    if (cur == null) {
+      cur = new SourceFileLine();
+      cur.sourcefile = srcf;
+      lzxFilename = srcf.name != null ? srcf.name.intern() : srcf.name;
+      cur.line = inputLinenum;
+      lnums.put(key, cur);
+    }
+    // if the source file changed, we'll just use the first one.
+    // otherwise, we want the smallest input line in the mapping.
+    else if (cur.sourcefile.equals(srcf) && inputLinenum < cur.line && inputLinenum > 0) {
+      cur.line = inputLinenum;
+      lzxFilename = srcf.name;
+      lnums.put(key, cur);
+    }
+  }
+
+  public static int countOccurence(String s, char c) {
+    int count = 0;
+    int pos = s.indexOf(c);
+    while (pos >= 0) {
+      count++;
+      pos = s.indexOf(c, pos+1);
+    }
+    return count;
+  }
+
+  public static int countLines(String s) {
+    return countOccurence(s, '\n');
+  }
+
+  @Override
+  public String toString() {
+    String shortText = text.toString();
+    if (shortText.length() > 20) {
+      shortText = shortText.substring(0, 20) + "...";
+    }
+    return "TranslationUnit[" + name + ", line " +
+      linenum + "] = \"" + shortText + "\"";
+  }
+
+  public void dump() {
+    System.out.println("TranslationUnit[" + name + ", line " + linenum + "]");
+    System.out.println("  text=" + text);
+    System.out.println("  preamble line offset=" + lineOffset);
+    System.out.println("  linemap=");
+    for (Integer key : lnums.keySet()) {
+      SourceFileLine val = lnums.get(key);
+      System.out.println("    " + key + " => " + val);
+    }
+  }
+
+  public SourceFileLine originalLineNumber(int num) {
+    num -= lineOffset;
+    SortedMap<Integer, SourceFileLine> nextLineNumber = lnums.tailMap(num);
+    if (nextLineNumber.size() == 0)
+      return null;
+    Integer key = nextLineNumber.firstKey();
+    if (key == null)
+      return null;
+    return lnums.get(key);
+  }
+}
+
+/**
+ * @copyright Copyright 2001-2011 Laszlo Systems, Inc.  All Rights
+ * Reserved.  Use is subject to license terms.
+ */

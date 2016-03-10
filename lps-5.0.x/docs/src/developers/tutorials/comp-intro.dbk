@@ -1,0 +1,150 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<chapter id="comp-intro">
+ <?dbhtml dir="tutorials" ?>
+
+ <title>Introduction to Components</title>
+
+ <para>OpenLaszlo components are high-level objects that implement common user-interface functions.
+  They range from relatively simple objects such as <literal>&lt;button&gt;</literal> to
+  complex objects such as <literal>&lt;form&gt;</literal> and
+  <literal>&lt;grid&gt;</literal>. </para>
+ <para> Components supplied with the OpenLaszlo Server are called <emphasis>LZ
+  components</emphasis>. </para>
+
+ <section>
+  <title>Overview</title>
+  <para> This tutorial introduction is intended to show you the variety of OpenLaszlo components and
+   demonstrate how to use their basic features. Later chapters explain how to use advanced features
+   of components and how to create your own components. </para>
+  <para> The simplest way to build an OpenLaszlo application is to use LZ components "out of the
+   box" with their default behaviors. This chapter includes a few such examples. It also includes a
+   few examples that use concepts that have not yet been introduced. Don't worry if you don't
+   understand exactly how they work. The idea here is to get acquainted with the general "feel" of
+   an OpenLaszlo application that is built mostly from components. The subsequent tutorials present
+   the concepts you'll need in order to create your own applications. </para>
+
+  <section>
+   <title>A Sampler</title>
+   <para> Before reading this chapter about how to use components to build an OpenLaszlo
+    application, you should take a few moments to get familiar with the range of components that
+    ship with OpenLaszlo. </para>
+   <para> The example below shows a miscellaneous collection of components. It's an abbreviated
+    version of the sampler in the <ulink url="../../../laszlo-explorer/index.html">OpenLaszlo
+     Explorer,</ulink> which contains a visual tour of all the components. The code that implements
+    these components may look a little intimidating if you have not worked with this kind of
+    language before, but don't be put off. In fact you may not even want to look at the code yet.
+    Your goal here is to start thinking about the kinds of things you can do in an OpenLaszlo
+    application, and components provide your quickest route to productivity.</para>
+   <para> The <ulink url="../../reference/">LZX Reference</ulink> documents all the tags, attributes
+    and methods associated with each component. </para>
+   <example role="live-example">
+    <title>Components miscellany</title>
+    <programlisting language="lzx">
+   <textobject><textdata fileref="programs/comp-intro-$1.lzx"/></textobject>
+   </programlisting>
+   </example>
+  </section>
+  <section>
+   <title>Form Components and "General" Components</title>
+   <para> You will notice that the OpenLaszlo Explorer groups components into "form components" and
+    "general components." This is merely a heuristic grouping of those components that usually
+    appear within a <literal>&lt;form&gt;</literal> tag and those that don't. There is no
+    essential difference; for example, the <literal>&lt;button&gt;</literal> tag can be
+    contained in a <literal>&lt;view&gt;</literal> or
+    <literal>&lt;window&gt;</literal>; it does not have to be contained in a
+     <literal>&lt;form&gt;</literal>. </para>
+
+   <section>
+    <title>When to Use the <literal>&lt;form&gt;</literal> Tag</title>
+    <para> Depending on your background in building web applications, you may be inclined to use the
+      <literal>&lt;form&gt;</literal> in place of the HTML
+     <literal>&lt;form&gt;</literal> tag. This is often a mistake; OpenLaszlo applications
+     are based on a different interaction model than HTML-based applications and overuse of the
+      <literal>&lt;form&gt;</literal> tag results in LZX programs that fail to exploit
+     OpenLaszlo's range of options. </para>
+    <para> The <literal>&lt;form&gt;</literal> tag is, generally speaking, not a widely used
+     tag in LZX applications. It is intended to be used in situations in which the client-server
+     interaction is simple, and there is a 1:1 mapping between the returned server data and the form
+     elements. When the server interaction is more complicated, more advanced databinding techniques
+     should be used, as explained in later chapters. </para>
+
+   </section>
+  </section>
+ </section>
+ <section>
+  <title>Building with Components</title>
+  <para> In this section we'll explore the various ways to use components in OpenLaszlo
+   applications: </para>
+  <itemizedlist spacing="compact">
+   <listitem>
+    <para>using tags</para>
+   </listitem>
+   <listitem>
+    <para>using script APIs</para>
+   </listitem>
+   <listitem>
+    <para>using databinding</para>
+   </listitem>
+  </itemizedlist>
+  <para> As mentioned above, the concepts of scripting and databinding are presented in later
+   chapters. Don't worry if you're not completely comfortable with these topics. </para>
+
+  <section>
+   <title>Using Tags</title>
+   <para> The simplest way to use the components is in an application that has tags only—no script.
+    The following trivial example shows what this looks like. </para>
+
+   <example role="live-example">
+    <title>Components example-tags only</title>
+    <programlisting language="lzx">
+   <textobject><textdata fileref="programs/comp-intro-$2.lzx"/></textobject>
+       <parameter role="canvas">height: 100</parameter>       
+   </programlisting>
+   </example>
+
+   <para> As a practical matter, you will usually need to use some script, whether in a method, or,
+    less frequently, to create a component within a <literal>&lt;script&gt;</literal>
+    element. </para>
+
+  </section>
+  <section>
+   <title>Creating Components from Script API</title>
+   <para> In addition to declaring components in tags, you can create and manipulate components from
+    script. </para>
+   <para> The following example shows how you can create buttons using tags and script. </para>
+
+   <example role="live-example">
+    <title>Creating components from script</title>
+    <programlisting language="lzx">
+   <textobject><textdata fileref="programs/comp-intro-$3.lzx"/></textobject>
+       <parameter role="canvas">height: 150</parameter>
+   </programlisting>
+   </example>
+   <para> In the example below, the <literal>onclick</literal> method procedurally adds an item to
+    the <literal>&lt;list &gt;</literal> component.</para>
+
+   <example role="live-example">
+    <title>Component APIs</title>
+    <programlisting language="lzx">
+   <textobject><textdata fileref="programs/comp-intro-$4.lzx"/></textobject>
+       <parameter role="canvas">height: 150</parameter>       
+   </programlisting>
+   </example>
+  </section>
+  <section>
+   <title>Data-Driven Components</title>
+   <para> A third way to create components is through databinding. In the example below, a new
+    component <literal>textlistitem</literal> is created for each matching node in the "mydata"
+    dataset. </para>
+
+   <example role="live-example">
+    <title>Data-Driven Components</title>
+    <programlisting language="lzx">
+   <textobject><textdata fileref="programs/comp-intro-$5.lzx"/></textobject>
+       <parameter role="canvas">height: 200, width:800</parameter>       
+   </programlisting>
+   </example>
+  </section>
+ </section>
+</chapter>

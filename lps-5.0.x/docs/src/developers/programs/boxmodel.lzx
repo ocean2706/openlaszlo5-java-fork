@@ -1,0 +1,75 @@
+<canvas height="200" width="100%" bgcolor="antiquewhite">
+  <stylesheet>
+    #thebox {
+    padding: 1 3 5 7;
+    border-width: 2 4 6 8;
+    border-color: cornflowerblue;
+    margin: 3 7 11 15;
+    }
+    text { color: navy; }
+    .margin { background-color: aliceblue; }
+    .borderwidth { color: white; background-color: cornflowerblue; }
+    .padding { background-color: skyblue; }
+    .content { background-color: white; }
+    colortext { border-width: 1; }
+    colortext.margin, colortext.borderwidth { border-bottom-width: 0 }
+  </stylesheet>
+  
+  <class name="colorview" extends="view">
+    <attribute name="bgcolor" style="background-color" value="transparent"/>
+    <attribute name="fgcolor" style="color" value="black"/>
+  </class>
+  <class name="colortext" extends="text" with="boxmodel" width="100%" multiline="true">
+    <attribute name="bgcolor" style="background-color" value="transparent"/>
+    <attribute name="fgcolor" style="color" value="black"/>
+  </class>
+  
+  <colorview styleclass="margin" x="5" y="5">
+    <colorview id="thebox" with="boxmodel" styleclass="padding" width="250">
+      <colorview styleclass="content" layout="axis: y; spacing:0" width="100%">
+        <text>Click me to demonstrate updating:</text>
+        <text name="op"/>
+        <colortext styleclass="margin">
+          <handler name="onmargin" reference="thebox" method="display"/>
+          <handler name="oninit" method="display"/>
+          <method name="display" args="ignore">
+            this.format("margin: %s", thebox.presentAttribute('margin'));
+          </method>
+        </colortext>
+        <colortext styleclass="borderwidth">
+          <handler name="onborderwidth" reference="thebox" method="display"/>
+          <handler name="oninit" method="display"/>
+          <method name="display" args="ignore">
+            this.format("borderwidth: %s", thebox.presentAttribute('borderwidth'));
+          </method>
+        </colortext>
+        <colortext styleclass="padding">
+          <handler name="onpadding" reference="thebox" method="display"/>
+          <handler name="oninit" method="display"/>
+          <method name="display" args="ignore">
+            this.format("padding: %s", thebox.presentAttribute('padding'));
+          </method>
+        </colortext>
+        <attribute name="attribute" type="string"/>
+        <attribute name="amount" type="number"/>
+        <handler name="onclick" method="doit"/>
+        <handler name="oninit" method="doit"/>
+        <method name="doit" args="ignore">
+          if (this.attribute) {
+          thebox.setAttribute(this.attribute, thebox[this.attribute] + amount);
+          }
+          var r = Math.floor(Math.random()*3);
+          var prefix = ['margin', 'border', 'padding'][r];
+          var suffix = ['','width',''][r];
+          this.attribute = prefix+['top','right','bottom','left'][Math.floor(Math.random()*4)]+suffix;
+          this.amount = Math.round(Math.random()*10);
+          op.format("%s += %w", attribute, amount);
+        </method>
+      </colorview>
+    </colorview>
+  </colorview>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2011 Laszlo Systems, Inc.  All Rights Reserved.                   *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->

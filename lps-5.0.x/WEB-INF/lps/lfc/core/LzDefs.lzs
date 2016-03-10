@@ -1,0 +1,170 @@
+/**
+  * LzDefs.lzs
+  *
+  * @copyright Copyright 2001-2012 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  * @topic LZX
+  * @subtopic Runtime
+  */
+
+/**
+ * Private class used to define a value whose computation must be
+ * deferred until runtime, such as a CSS style
+ * @access private
+ */
+class LzValueExpr {
+};
+
+/**
+ * Private class used to distinguish an init expression from an
+ * initial value in node attributes.  All forms of 'constraints' are a
+ * subclass of this class
+ * @access private
+ */
+class LzInitExpr extends LzValueExpr {
+  function LzInitExpr() {}
+}
+
+/**
+ * Private class used to define a 'once' or 'path' constraint
+ * @access private
+ */
+class LzOnceExpr extends LzInitExpr {
+  var methodName:String;
+  if ($debug || $profile) {
+    var _dbg_name;
+  }
+
+  function LzOnceExpr(initMethod:String, description=null) {
+    super();
+    this.methodName = initMethod;
+    if ($debug || $profile) {
+      this._dbg_name = description;
+    }
+  }
+}
+
+/**
+ * Private class used to classify 'style' and 'always' constraints
+ * @access private
+ */
+class LzConstraintExpr extends LzOnceExpr {
+  function LzConstraintExpr(constraintMethod:String, description=null) {
+    super(constraintMethod, description);
+  }
+};
+
+/**
+ * Private class used to define default style bindings in the LFC
+ * @access private
+ */
+class LzStyleConstraintExpr extends LzConstraintExpr {
+  public static const StyleConstraintExpr:LzStyleConstraintExpr;
+
+  function LzStyleConstraintExpr(description="=\"$style{'...'}\"") {
+    super(null, description);
+  }
+
+  LzStyleConstraintExpr.StyleConstraintExpr = new LzStyleConstraintExpr();
+}
+
+/**
+ * Private class used to define an 'always' constraint (which also has
+ * a dependency method)
+ * @access private
+ */
+class LzAlwaysExpr extends LzConstraintExpr {
+  var dependenciesName:String;
+  function LzAlwaysExpr(constraintMethod:String, dependenciesMethod:String, description=null) {
+    super(constraintMethod, description);
+    this.dependenciesName = dependenciesMethod;
+  }
+}
+
+/**
+ * Private class used to define a constraint in a style value
+ * @access private
+ */
+class LzStyleExpr extends LzValueExpr {
+  if ($debug || $profile) {
+    var _dbg_name;
+  }
+
+  function LzStyleExpr() {}
+}
+
+/**
+ * Private class used to define an 'attr()' constraint
+ * @access private
+ */
+class LzStyleAttr extends LzStyleExpr {
+  var sourceAttributeName:String
+  function LzStyleAttr(sourceAttributeName:String) {
+    super();
+    this.sourceAttributeName = sourceAttributeName;
+    if ($debug || $profile) {
+      this._dbg_name = "attr(" + this.sourceAttributeName + ")";
+    }
+  }
+};
+
+/**
+  * Used to efficiently clone hashtables using Object's
+  * N.B. these tables incorrectly will appear to have entries for all
+  * the properties of Object.prototype.  To avoid this (but pay the
+  * overhead of a slower implementation, use LzDictionary).
+  * @access private
+  */
+if ($as3) {
+dynamic class LzInheritedHash extends Dictionary {
+    #passthrough (toplevel:true) {
+import flash.utils.Dictionary;
+}#
+
+    function LzInheritedHash (sup:Object = null) {
+        if(sup) {
+            for (var k in sup) {
+                this[k] = sup[k];
+            }
+        }
+    }
+}
+
+} else {
+
+function LzInheritedHash (parent)  {
+  if (parent) {
+    for (var key in parent) {
+      this[key] = parent[key];
+    }
+  }
+}
+
+}
+
+/** The `lz` object is a pseudo-package for all LZX globals. Any declared LZX tag
+  * can be accessed from JavaScript using the tag name and the `lz` object.
+  *
+  * <example executable="false">
+  *   var foo = new lz.view(canvas, 
+  *                         {name:'foo', visible:true, options: {ignorelayout:true}})
+  * </example>
+  *
+  * @shortdesc Pseudo-package for all LZX globals
+  * @access public
+  */
+var lz;
+
+((function () {
+    if (lz is Object) {
+      // In some runtimes, lz is already defined by the embedding script
+    } else if (!lz) {
+      // prevent compiler from reporting global assignment warning for lz
+      #pragma "warnGlobalAssignments=false"
+      lz = new LzInheritedHash();
+      lz["ClassAttributeTypes"] = new LzInheritedHash();
+      lz.ClassAttributeTypes["Object"] = {};
+    } else if ($debug) {
+      Debug.error("Can't create `lz` namespace, already bound to %w", lz);
+    }
+  })());

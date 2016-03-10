@@ -1,0 +1,202 @@
+<?xml version="1.0"?>
+
+<project name="includes" default="build">
+  <description>
+    This is the build file for the lps/includes
+  </description>
+
+  <import file="../../../build-tools/build-opt.xml" />
+
+  <target name="init" depends="build-opt">
+    <tstamp />
+
+    <path id="lfctosc.classpath">
+      <fileset dir="${LPS_HOME}/3rd-party" includes="**/*.jar" />
+      <fileset dir="${LPS_HOME}/WEB-INF/lib" includes="**/*.jar" />
+    </path>
+
+    <available property="has_sc.Main"
+               classname="org.openlaszlo.sc.Main"
+               classpathref="lfctosc.classpath" />
+
+    <!-- Whether the compressed embed is up to date -->
+    <uptodate property="embed.uptodate" >
+      <srcfiles dir="." includes="embednew.js,iframemanagerstub.js,mousewheel.js,lzhistory.js,embed-library.lzs" />
+      <compositemapper>
+        <mergemapper to="../embed-compressed.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed excanvas is up to date -->
+    <uptodate property="excanvas.uptodate" >
+      <srcfiles dir="." includes="excanvas.js" />
+      <compositemapper>
+        <mergemapper to="../excanvas.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed rtemanager is up to date -->
+    <uptodate property="rtemanager.uptodate" >
+      <srcfiles dir="." includes="rtemanager.js,iframestub.js,pmrpc.js,json2.js,rtemanager-library.lzs" />
+      <compositemapper>
+        <mergemapper to="../rtemanager.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed flash is up to date -->
+    <uptodate property="flash.uptodate" >
+      <srcfiles dir="." includes="flash.js,regexp.js,flash-library.lzs" />
+      <compositemapper>
+        <mergemapper to="../flash.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed iframemanager is up to date -->
+    <uptodate property="iframemanager.uptodate" >
+      <srcfiles dir="." includes="iframemanager.js,pmrpc.js,iframemanager-library.lzs" />
+      <compositemapper>
+        <mergemapper to="../iframemanager.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed iframestub is up to date -->
+    <uptodate property="iframestub.uptodate" >
+      <srcfiles dir="." includes="iframestub.js,pmrpc.js,json2.js" />
+      <compositemapper>
+        <mergemapper to="../iframestub.js" />
+      </compositemapper>
+    </uptodate>
+
+    <!-- Whether the compressed pmrpc is up to date -->
+    <uptodate property="pmrpc.uptodate" >
+      <srcfiles dir="." includes="pmrpc.js" />
+      <compositemapper>
+        <mergemapper to="../pmrpc.js" />
+      </compositemapper>
+    </uptodate>
+    
+    <!-- Whether the compressed json2 is up to date -->
+    <uptodate property="json2.uptodate" >
+      <srcfiles dir="." includes="json2.js" />
+      <compositemapper>
+        <mergemapper to="../json2.js" />
+      </compositemapper>
+    </uptodate>
+  </target>
+
+  <target name="clean" depends="init">
+    <delete failonerror="false">
+      <fileset dir=".." includes="embed-compressed.js" />
+      <fileset dir=".." includes="excanvas.js" />
+      <fileset dir=".." includes="rtemanager.js" />
+      <fileset dir=".." includes="iframemanager.js" />
+      <fileset dir=".." includes="flash.js" />
+      <fileset dir=".." includes="iframestub.js" />
+      <fileset dir=".." includes="pmrpc.js" />
+      <fileset dir=".." includes="json2.js" />
+    </delete>
+  </target>
+
+  <target name="compress" description="compress a .lzs library" depends="init">
+    <fail unless="has_sc.Main" message="Can't find org.openlaszlo.sc.Main in classpath." />
+    <echo message="Compiling ${output}" />
+    <java classname="org.openlaszlo.sc.Main"
+          classpathref="lfctosc.classpath"
+          fork="true"
+          failonerror="true">
+      <sysproperty key="LPS_HOME" value="${LPS_HOME}" />
+      <arg value="--runtime=dhtml" />
+      <arg value="-o${output}" />
+      <arg value="--default=${source}" />
+    </java>
+  </target>
+
+  <target name="embed"
+          depends="init"
+          unless="embed.uptodate">
+    <ant target="compress">
+      <property name="output" value="../embed-compressed.js" />
+      <property name="source" value="embed-library.lzs" />
+    </ant>
+  </target>
+
+  <target name="excanvas"
+          depends="init"
+          unless="excanvas.uptodate">
+    <ant target="compress">
+      <property name="output" value="../excanvas.js" />
+      <property name="source" value="excanvas.js" />
+    </ant>
+  </target>
+
+  <target name="rtemanager"
+          depends="init"
+          unless="rtemanager.uptodate">
+    <ant target="compress">
+      <property name="output" value="../rtemanager.js" />
+      <property name="source" value="rtemanager-library.lzs" />
+    </ant>
+  </target>
+
+  <target name="flash"
+          depends="init"
+          unless="flash.uptodate">
+    <ant target="compress">
+      <property name="output" value="../flash.js" />
+      <property name="source" value="flash-library.lzs" />
+    </ant>
+  </target>
+
+  <target name="iframemanager"
+          depends="init"
+          unless="iframemanager.uptodate">
+    <ant target="compress">
+      <property name="output" value="../iframemanager.js" />
+      <property name="source" value="iframemanager-library.lzs" />
+    </ant>
+  </target>
+
+  <target name="iframestub"
+          depends="init"
+          unless="iframestub.uptodate">
+    <ant target="compress">
+      <property name="output" value="../iframestub.js" />
+      <property name="source" value="iframestub.js" />
+    </ant>
+  </target>
+
+  <target name="pmrpc"
+          depends="init"
+          unless="pmrpc.uptodate">
+    <ant target="compress">
+      <property name="output" value="../pmrpc.js" />
+      <property name="source" value="pmrpc.js" />
+    </ant>
+  </target>
+
+  <target name="json2"
+          depends="init"
+          unless="json2.uptodate">
+    <ant target="compress">
+      <property name="output" value="../json2.js" />
+      <property name="source" value="json2.js" />
+    </ant>
+  </target>
+
+  <target name="doc">
+  </target>
+
+  <target name="build" description="Build all the includes, unless they're already up to date"
+          depends="init,embed,excanvas,flash,iframemanager,iframestub,rtemanager,pmrpc,json2">
+  </target>
+
+  <target name="all"
+          description="Clean, build, (no doc here)"
+          depends="clean,build" />
+</project>
+
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+* Copyright 2007, 2009, 2010 Laszlo Systems, Inc.  All Rights Reserved.                   *
+* Use is subject to license terms.                                            *
+* X_LZ_COPYRIGHT_END ****************************************************** -->
+

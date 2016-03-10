@@ -1,0 +1,115 @@
+# These are instructions to build flex from source and then copy needed files
+# to the LPS tree.
+#
+# flex version history	
+# Wed Jun  2 08:30:41 2010
+# I am installing flex_sdk_4.0.0.14159 Mar 2010 milestone build
+#
+# Mon Aug 16 17:33:09 2010
+# Installed Flex 4.1 Update 	 4.1.0.16076 	 Thu June 30, 2010 
+
+# http://opensource.adobe.com/svn/opensource/flex/sdk/trunk
+#
+# If a pre-built release from adobe is being used, skip the step where 
+# you do "svn export" and "ant", below, and just copy the files as specified.
+#
+# The approach I take below is to copy chunks of the Flex tree, and then
+# prune away the files we don't need, such as source to components, etc.
+#
+================================================================
+
+# Build from source, (assumes adobe flex tree is at ~/openlaszlo/adobe/trunk,
+# and we build a staging area for the flex tree in /tmp/flex)
+
+# We need to get files without taking the .svn files. So first do an
+# export from the adobe svn tree, to get a tree which has no .svn info
+# in it
+
+svn export trunk /tmp/flex
+
+
+# do "ant" in the flex dir to build the compiler and various libs
+cd /tmp/flex; ant
+
+# NOTE: [2009-07-30] we decided to not use the copies of the batik
+# .jars from the Flex SDK, and just use some selected batik jar files
+# direct from the apache release. So don't copy over any of batik jar files
+# NOTE: We also don't copy the  XML parser .jars, they cause doc
+# build to fail.  flex seems happy without them, maybe only needed for
+# compiling MXML?  
+
+# skip saxon9.jar, because it conflicts with the js2doc tools
+
+for i in \
+adt.jar \
+afe.jar \
+aglj40.jar \
+asc.jar \
+asdoc.jar \
+batik-all-flex.jar \
+batik_de.jar \
+batik_fr.jar \
+batik_ja.jar \
+batik_ko.jar \
+batik_ru.jar \
+batik_zh_CN.jar \
+commons-collections.jar \
+commons-discovery.jar \
+commons-logging.jar \
+compc.jar \
+copylocale.jar \
+digest.jar \
+fcsh.jar \
+fdb.jar \
+flex-compiler-oem.jar \
+flex-fontkit.jar \
+flex-messaging-common.jar \
+flexTasks.jar \
+fxgutils.jar \
+license.jar \
+mxmlc.jar \
+mxmlc_ja.jar \
+optimizer.jar \
+rideau.jar \
+swcdepends.jar \
+swfdump.jar \
+swfutils.jar \
+velocity-dep-1.4-flex.jar
+do  
+  cp /tmp/flex/lib/$i $LPS_HOME/WEB-INF/lib 
+done;
+
+cp -r /tmp/flex/frameworks $LPS_HOME/WEB-INF
+cp -r /tmp/flex/bin $LPS_HOME/WEB-INF
+
+# get rid of some unneeded source files
+cd $LPS_HOME/WEB-INF
+rm -rf frameworks/projects/framework/src
+rm -rf frameworks/projects/framework/asdoc
+rm -rf frameworks/projects/rpc/src
+
+# leave the AIR libraries, frameworks/libs/air
+
+rm -rf frameworks/projects/airframework
+rm -rf frameworks/projects/flash-integration
+rm -rf frameworks/projects/flex
+rm -rf frameworks/projects/framework/asdoc
+rm -rf frameworks/projects/framework/src
+rm -rf frameworks/projects/haloclassic
+rm -rf frameworks/projects/rpc/src
+rm -rf frameworks/projects/utilities
+rm -rf frameworks/rsls
+rm -rf frameworks/tests
+rm -rf frameworks/themes
+
+
+
+# ================================================================
+
+# FLEX OEM compiler API at
+#  /Users/hqm/openlaszlo/adobe/trunk/modules/compiler/src/java/flex2/tools/oem:
+#
+#  [We tried to use this API to invoke the compiler but had to back out because there was
+#  some bug with spaces in pathnames in OSX]
+
+# find . -type d -name ".svn" -print | xargs rm -rf

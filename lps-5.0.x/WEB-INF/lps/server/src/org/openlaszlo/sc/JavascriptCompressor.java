@@ -1,0 +1,393 @@
+/* -*- mode: Java; c-basic-offset: 2; -*- */
+
+/**
+ * Javascript 'Compressor'
+ *
+ * @author steele@osteele.com
+ * @author ptw@pobox.com
+ * @description: JavaScript -> JavaScript translator
+ *
+ * Rewrites local variables and compresses Javascript
+ */
+
+package org.openlaszlo.sc;
+
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import org.openlaszlo.sc.parser.*;
+import org.openlaszlo.utils.LZUtils;
+
+public class JavascriptCompressor extends GenericVisitor implements Translator {
+  // TODO: [2009-10-30 ptw]
+  //
+  // Compressions that other compressors make:
+  //
+  // . Use minimal strings for locals:  You have to not use a string
+  // that could be a Javascript keyword, and you had better not shadow
+  // any globals from the underlying runtime.  You can guess that
+  // "free" references are probably globals in the underlying runtime.
+  //
+  // . Support a #pragma to turn off renaming
+  //
+  // . Remove unused locals
+  //
+  // . Compact literals:  ParseTreePrinter already minimizes quotes in
+  // strings and encodes integers in hex.  You could do partial
+  // evaluation of string operations on constant strings...
+  //
+  // . Convert x['y'] into x.y, but that has semantic significance in
+  // some platforms ([] is used to avoid compile-time check for access
+  // to dynamic properties).
+  //
+  // . Convert { 'x': ... } to { x: ... }
+  //
+  // . Collapse all var declarations to one (but leave init where it appears).
+  //
+  // . String literals do not need to be delimited from preceding
+  // token?  I.e., case 'x': -> case'x': ?
+  //
+  // Potential gotchas we have not addressed:
+  //
+  // . A `with` creates a new scope, an `eval` introduces unknowable
+  // references.  VariableAnalyzer needs to take that into account
+  // when calculating local/free/closed.
+  //
+
+  @SuppressWarnings("unchecked")
+  public JavascriptCompressor (Properties initialOptions) {
+    // just for the effect
+    this((Map<String, Object>) ((Map<?, ?>) initialOptions));
+  }
+
+  public JavascriptCompressor (Map<String, Object> initialOptions) {
+    super();
+    this.setOptions(new Compiler.OptionMap(initialOptions));
+  }
+
+  // Cf., sc.Compiler.defaultOptions  We set some internal options for
+  // compatibility with the script compiler
+  @Override
+  public void setOptions(Compiler.OptionMap options) {
+    this.options = options;
+
+    if (options.getBoolean(Compiler.DEBUG)) {
+      options.putBoolean(Compiler.NAME_FUNCTIONS, true);
+    }
+    if (!options.containsKey(Compiler.DISABLE_TRACK_LINES) &&
+        options.getBoolean(Compiler.NAME_FUNCTIONS)) {
+      options.putBoolean(Compiler.TRACK_LINES, true);
+    }
+  }
+
+  public TranslationContext makeTranslationContext(Object type, TranslationContext parent, String label) {
+    return new TranslationContext(type, parent, label);
+  }
+  public TranslationContext makeTranslationContext(Object type, TranslationContext parent){
+    return new TranslationContext(type, parent);
+  }
+
+  // Holds registers.  Create a default one for the top-level, just
+  // for uniformity
+  TranslationContext context = makeTranslationContext(ASTProgram.class, null);
+
+  public TranslationContext getContext() {
+    return this.context;
+  }
+
+  class CompressorParseTreePrinter extends ParseTreePrinter {
+
+    public CompressorParseTreePrinter(ParseTreePrinter.Config config) {
+      super(config);
+    }
+
+    // Passthrough's need to be preserved for the linker
+    @Override
+    public String visitPassthroughDirective(SimpleNode node, String[] children) {
+      ASTPassthroughDirective pt = (ASTPassthroughDirective)node;
+      String optString = "";
+      Map<String, Boolean> options = pt.getProperties();
+      for (Iterator<Map.Entry<String, Boolean>> i = options.entrySet().iterator(); i.hasNext(); ) {
+        Map.Entry<String, Boolean> entry = i.next();
+        String key = entry.getKey();
+        Boolean value = entry.getValue();
+        optString += key + ": " + value;
+        if (i.hasNext()) { optString += ", "; }
+      }
+      if (optString.length() > 0) { optString = " (" + optString + ")"; }
+      return "#passthrough" + optString + " {" +
+        ((ASTPassthroughDirective)node).getText() +
+        "}#\n";
+    }
+  }
+
+
+  public void compress(SimpleNode program, OutputStream out) {
+    // Here is your opportunity to set any sort of flags you might
+    // want to to neuter translations that are not needed.
+    ParseTreePrinter.Config config = new ParseTreePrinter.Config();
+    boolean compress = (! options.getBoolean(Compiler.NAME_FUNCTIONS));
+    config.setCompress(compress);
+    config.setObfuscate(compress || options.getBoolean(Compiler.OBFUSCATE));
+    config.setTrackLines(options.getBoolean(Compiler.TRACK_LINES));
+    // One small step towards a stream compiler...
+    (new CompressorParseTreePrinter(config)).print(translate(program), out);
+  }
+
+  public SimpleNode translate(SimpleNode program) {
+    return visitProgram(program, program.getChildren());
+  }
+
+  public void setOriginalSource(String source) {
+    // no action by default
+  }
+
+  public String preProcess(String source) {
+    return source;
+  }
+
+  public List<TranslationUnit> makeTranslationUnits(SimpleNode translatedNode, boolean compress, boolean obfuscate)
+  {
+    ParseTreePrinter.Config config = new ParseTreePrinter.Config();
+    config.compress = compress;
+    config.obfuscate = obfuscate;
+    return (new ParseTreePrinter(config)).makeTranslationUnits(translatedNode, null);
+  }
+
+  public byte[] postProcess(List<TranslationUnit> tunits) {
+    assert (tunits.size() == 1);
+    return tunits.get(0).getContents().getBytes();
+  }
+
+  // Override generic to maintain options
+  @Override
+  public SimpleNode visitPragmaDirective(SimpleNode node, SimpleNode[] children) {
+    String key = (String)((ASTLiteral)children[0]).getValue();
+    String value = "true";
+    int equals = key.indexOf('=');
+    if (equals > 0) {
+      value = key.substring(equals + 1);
+      key = key.substring(0, equals);
+    }
+    if (LZUtils.equalsIgnoreCase("false", value) ||
+        LZUtils.equalsIgnoreCase("true", value)) {
+      options.putBoolean(key, value);
+    } else {
+      options.put(key, value);
+    }
+    return node;
+  }
+
+  // Override Generic to analyze and rename locals
+  @Override
+  SimpleNode translateFunctionInternal(SimpleNode node, boolean useName, SimpleNode[] children, boolean isMethod) {
+    int len = children.length;
+    assert len == 2 || len == 3;
+    // AST can be any of:
+    //   FunctionDefinition(name, args, body)
+    //   FunctionDeclaration(name, args, body)
+    //   FunctionDeclaration(args, body)
+    // Handle the two arities:
+    SimpleNode formals;
+    SimpleNode body;
+    if (len == 3) {
+      formals = children[1];
+      body = children[2];
+    } else {
+      formals = children[0];
+      body = children[1];
+    }
+    assert formals instanceof ASTFormalParameterList : "Bad formals " + formals + " in \"" + (new ParseTreePrinter()).text(node) + "\"";
+    assert body instanceof ASTStatementList : "Bad body " + body + " in \"" + (new ParseTreePrinter()).text(node) + "\"";
+    SimpleNode[] paramIds = formals.getChildren();
+    SimpleNode[] statements = body.getChildren();
+
+    // We have to do this because we are processing the StatementList
+    // directly here
+    //
+    // Scope #pragma directives to block
+    Compiler.OptionMap savedOptions = options;
+    try {
+      options = savedOptions.copy();
+      context = makeTranslationContext(ASTFunctionExpression.class, context);
+
+      // We have to look for #pragma "scriptElement", so peek into the
+      // statement list
+      for (int i = 0, ilim = statements.length; i < ilim; i++) {
+        SimpleNode stmt = statements[i];
+        if (stmt instanceof ASTPragmaDirective) {
+          visitStatement(stmt);
+        }
+      }
+
+      // Analyze local variables (and functions).  Don't mess with
+      // `super`, leave `$flasm` alone (is $flasm still used!?!?)
+      VariableAnalyzer analyzer = new VariableAnalyzer(formals, true, true, this);
+      for (int i = 0, ilim = statements.length; i < ilim; i++) {
+        analyzer.visit(statements[i]);
+      }
+      analyzer.computeReferences();
+      // Parameter _must_ be in order
+      LinkedHashSet<String> parameters = analyzer.parameters;
+      // Linked for determinism for regression testing
+      Set<String> variables = analyzer.variables;
+      Set<String> closed = analyzer.closed;
+      Set<String> free = analyzer.free;
+      Map<String, Integer> used = analyzer.used;
+
+      boolean scriptElement = options.getBoolean(Compiler.SCRIPT_ELEMENT);
+
+      // auto-declared locals
+      Set<String> auto = new LinkedHashSet<String>();
+      auto.add("this");
+      auto.add("arguments");
+      auto.retainAll(used.keySet());
+      // parameters, locals, and auto-registers (locals includes inner
+      // functions)
+      Set<String> known = new LinkedHashSet<String>(parameters);
+      known.addAll(variables);
+      known.addAll(auto);
+
+      Map<String, String> registerMap = new HashMap<String, String>();
+      if (! scriptElement) {
+        // All parameters and locals are remapped to 'registers' of the
+        // form `$n` to make the code more compact
+        // We start the 'compressed' registers at 10 so they are less
+        // likely to collide with final output registers
+        int regno = 10;
+        boolean debug = options.getBoolean(Compiler.NAME_FUNCTIONS);
+        // Have to make a copy to iterate over because we destructively
+        // modify `known`
+        for (String k : new LinkedHashSet<String>(known)) {
+          String r;
+          if (auto.contains(k) || closed.contains(k)) {
+            ;
+          } else {
+            // Find a valid 'register' name (repeat until you don't
+            // collide with the known or free sets)
+            do {
+              // When debugging prepend non-$ names for legibility
+              r = ((debug && (! k.startsWith("$"))) ? (k + "_$") : "$") + Integer.toString(regno++, Character.MAX_RADIX) ;
+            } while (known.contains(r) || free.contains(r));
+            registerMap.put(k, r);
+            // remove from known map
+            known.remove(k);
+          }
+        }
+      }
+      // Always set register map.  Inner functions should not see
+      // parent registers
+      context.setProperty(TranslationContext.REGISTERS, registerMap);
+      // Set the knownSet.  This includes the parent's known set, so
+      // closed over variables are not treated as free.
+      Set<String> knownSet = new LinkedHashSet<String>(known);
+      // Add parent known
+      Set<String> parentKnown = context.parent.getProperty(TranslationContext.VARIABLES);
+      if (parentKnown != null) {
+        knownSet.addAll(parentKnown);
+      }
+      context.setProperty(TranslationContext.VARIABLES, knownSet);
+
+      // Replace formals with 'registers'
+      for (int i = 0, ilim = paramIds.length; i < ilim; i++) {
+        if (paramIds[i] instanceof ASTIdentifier) {
+          ASTIdentifier oldParam = (ASTIdentifier)paramIds[i];
+          SimpleNode newParam = translateIdentifier(oldParam, AccessMode.DECLARE);
+          formals.set(i, newParam);
+        } else {
+          assert paramIds[i] instanceof ASTFormalInitializer;
+        }
+      }
+
+      // inner functions do not get scriptElement treatment, shadow any
+      // outer declaration
+      options.putBoolean(Compiler.SCRIPT_ELEMENT, false);
+      // Rewrite the body using the renamed locals
+      for (int i = 0, ilim = statements.length; i < ilim; i++) {
+        SimpleNode stmt = statements[i];
+        if (! (stmt instanceof ASTPragmaDirective)) {
+          statements[i] = visitStatement(stmt);
+        }
+      }
+    }
+    finally {
+      options = savedOptions;
+      context = context.parent;
+    }
+
+    return node;
+  }
+
+  // Override to rename variables
+  @Override
+  public ASTIdentifier translateIdentifier(ASTIdentifier id, AccessMode mode) {
+    Map<String, String> registers = context.getProperty(TranslationContext.REGISTERS);
+    // Replace identifiers with their 'register' (i.e. rename them)
+    String name = id.getName();
+    if ((registers != null) && registers.containsKey(name)) {
+      String register = registers.get(name);
+      id.setName(register);
+    }
+    return id;
+  }
+
+  //
+  // Enforce options/pragma block scope
+  //
+  @Override
+  public SimpleNode visitProgram(SimpleNode node, SimpleNode[] children) {
+    // Scope #pragma directives to block
+    Compiler.OptionMap savedOptions = options;
+    try {
+      options = savedOptions.copy();
+      return super.visitProgram(node, children);
+    }
+    finally {
+      options = savedOptions;
+    }
+  }
+
+  // TODO: [2009-10-28 ptw] We wouldn't need this if a class
+  // definition body were a ASTStatementList, instead of just a bunch
+  // of appended children...
+  @Override
+  public SimpleNode visitClassDefinition(SimpleNode node, SimpleNode[] children) {
+    // Scope #pragma directives to block
+    Compiler.OptionMap savedOptions = options;
+    try {
+      options = savedOptions.copy();
+      return super.visitClassDefinition(node, children);
+    }
+    finally {
+      options = savedOptions;
+    }
+  }
+
+  @Override
+  public SimpleNode visitStatementList(SimpleNode node, SimpleNode[] children) {
+    // Scope #pragma directives to block
+    Compiler.OptionMap savedOptions = options;
+    try {
+      options = savedOptions.copy();
+      return super.visitStatementList(node, children);
+    }
+    finally {
+      options = savedOptions;
+    }
+  }
+
+  public void compileBlock(SimpleNode translatedNode) { };
+
+}
+
+/**
+ * @copyright Copyright 2006-2007, 2009-2011 Laszlo Systems, Inc.  All Rights
+ * Reserved.  Use is subject to license terms.
+ */
+

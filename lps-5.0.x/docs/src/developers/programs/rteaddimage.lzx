@@ -1,0 +1,22 @@
+<canvas width="100%" height="400">
+  <include href="extensions/rte.lzx"/>
+  
+  <rte width="600" height="400">Initial contents of the component.
+    <method name="rte_bold_callback" args="txt">  <![CDATA[
+            // Turn all the text bold
+            this.setAttribute ('text', '<b>' + txt + '</b>');
+            ]]>
+    </method>
+    <method name="rte_bold" args="ignore"> <![CDATA[
+            this.getText(new LzDelegate(this, 'rte_bold_callback'));
+          ]]>
+    </method>
+    <handler name="oneditorready">
+      this.addButton ({value:'All Bold'}, new LzDelegate(this, 'rte_bold'));
+    </handler>
+  </rte>
+</canvas>
+<!-- * X_LZ_COPYRIGHT_BEGIN ***************************************************
+  * Copyright 2010 Laszlo Systems, Inc.  All Rights Reserved.                   *
+  * Use is subject to license terms.                                            *
+  * X_LZ_COPYRIGHT_END ****************************************************** -->

@@ -1,0 +1,213 @@
+/**
+  * LzLibrary.as
+  *
+  * @copyright Copyright 2001-2009 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  *
+  * @topic LZX
+  * @subtopic Syntax
+  */
+
+/**
+  * @lzxname import
+  * @initarg stage
+  */
+class LzLibrary extends LzNode {
+
+/** @access private
+  * @modifiers override 
+  */
+static var tagname = 'import';
+/** @access private */
+  static var attributes = new LzInheritedHash(LzNode.attributes);
+
+/** @access private */
+var loaded = false;
+/** @access private */
+var loading = false;
+/** @access private */
+var sprite = null;
+/** @access private */
+var loader;
+
+/**
+ * A reference to a target file whose content is treated as a 
+ * loadable module.
+ * 
+ * @keywords final
+ * @type string
+ * @access public 
+ */
+var href;
+
+/** 
+ * When set to 'defer', the library will not be loaded until its 
+ * load-method has been called. Otherwise, the library loads 
+ * automatically. 
+ * 
+ * @keywords final
+ * @type string 
+ * @lzxdefault "late"
+ * @access public 
+ */
+var stage = "late";//"late|defer"
+
+/** 
+ * @keywords final
+ * @type inheritableBoolean
+ * @lzxdefault "inherit"
+ * @access public 
+ */
+var proxied = null;
+
+/**
+ * Sent when this library has finished loading. 
+ * 
+ * @lzxtype event
+ * @access public
+ */
+var onload = LzDeclaredEvent;
+
+/**
+ * Sent when the request to load this library times out. 
+ * 
+ * @lzxtype event
+ * @access public
+ */
+var ontimeout = LzDeclaredEvent;
+
+/**
+ * Sent when there is an error loading this library. 
+ * 
+ * @lzxtype event
+ * @access public
+ */
+var onerror = LzDeclaredEvent;
+
+/**
+  * @access private
+  */
+function construct (parent, args) {
+    this.stage = args.stage;
+    super.construct(parent, args);
+    this.sprite = new LzSprite(this, false, args);
+    LzLibrary.libraries[args.name] = this;
+}
+
+/**
+  * @access private
+  */
+function init( ) {
+    super.init();
+    if (this.stage == "late") {
+        this.load();
+    }
+}
+
+/** @access private */
+static var libraries = {};
+
+/**
+  * @access private
+  */
+static function findLibrary (libname){
+    return LzLibrary.libraries[libname];
+}
+
+/**
+  * @access private
+  */
+function toString (){
+    return "Library " + this.href + " named " + this.name;
+}
+
+/**
+  * Loads this library dynamically at runtime. Must only be called 
+  * when stage was set to 'defer'.
+  * 
+  * @access public
+  */
+function load (){
+  if (this.loading || this.loaded) {
+    return;
+  }
+  this.loading = true;
+  this.sprite.makeContainerResource();
+  var loader = (this.loader = new LzLibraryLoader(this.sprite));
+
+  // check if this library has a "proxied" attribute which overrides canvas switch
+  if (this.proxied != null) {
+      var proxied = (this.proxied == true);
+  } else {
+      var proxied = canvas.proxied;
+  }
+
+  loader.proxied = proxied;
+
+  loader.request( this.href );
+}
+
+/** 
+ * Called by LzLibraryCleanup when this library has finished loading.
+ * 
+ * @access private 
+ */
+function loadfinished (){
+  this.loading = false;
+  if (this.onload.ready) this.onload.sendEvent(true);
+}
+
+/**
+  * To 'unload' a snippet, three things have to be done:
+  * 1. Destroy all the instances that were created by the snippet.
+  * This is done by calling `iii.destroy();` for each instance
+  * iii. Note that if you have created references to the instance
+  * outside of the snippet, you must `delete` those references.
+  * 
+  * 2. Destroy all classes that were created by the snippet.  This
+  * is done by calling `ccc.destroy();` for each class ccc.  Note
+  * that if you have created references to the class outside of
+  * the snippet, you must `delete` those references.
+  * 
+  * 3. Unload the snippet.  This is done by calling
+  * `sss.unload()`, where sss is the name of the snippet (in the
+  * import tag).
+  * 
+  * At this point, you can re-load the snippet by calling
+  * `sss.load()`.  If you know you will never use the snippet
+  * again, you can call `sss.destroy();` to remove the snippet
+  * from your application altogether.
+  * 
+  * @access private
+  */
+function unload () {
+  if (! (this.loading || this.loaded)) {
+    return;
+  }
+  var loader = this.loader;
+  if (this.loading) {
+      loader.abort();
+  } else {
+      loader.unload();
+  }
+  this.loader.destroy();
+  delete this.loader;
+  
+  this.loading = false;
+  this.loaded = false;
+}
+
+/**
+  * @access private
+  */
+function destroy () {
+    this.unload();
+    if (this.sprite) {
+        this.sprite.destroy();
+        this.sprite = null;
+    }
+    super.destroy();
+}
+
+}; // End of LzLibrary
+lz[LzLibrary.tagname] = LzLibrary;  //publish

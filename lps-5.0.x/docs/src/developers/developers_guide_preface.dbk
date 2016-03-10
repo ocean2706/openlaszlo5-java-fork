@@ -1,0 +1,204 @@
+<!DOCTYPE section PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+          "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<section>
+  <title>Preface</title>
+  <para>We invented this technology to make it possible to create web applications that are
+    delightful to use.</para>
+
+  <para>Every computer user knows the power of the Internet, and every web surfer has been awed at
+    one time or another by the vast wealth of the Web. But at the same time everyone knows, even if
+    they only know it subconsciously, that web-based applications running in a browser offer a user
+    experience that is inherently inferior to that of locally-running programs. There is something
+    almost retrograde about interacting with websites; they're anomalous, like rotary telephones in
+    a touch-tone world.</para>
+
+  <para>The reason for this is clear. It's not because web designers don't know anything about
+    usability or visual design or software engineering. It's because they have not had the tools
+    they require to build the web experience they conceive.</para>
+
+  <para>HTML is a great thing; DHTML is a great thing. Adobe's Flash<trademark/> is a great thing.
+    But none of them allow developers to create astounding user experiences, because all of them are
+    based on fundamentally limited models. The variants of HTML are based on the metaphor of a
+    "page," which forces users to process information in arbitrary discrete chunks separated by
+    jarring transitions and "page refreshes." Flash offers the possibility of a much more continuous
+    user experience, but its "movie" metaphor forces developers to leave behind many essential tools
+    and techniques of modern software development.</para>
+
+  <para>In contrast, the OpenLaszlo solution was built from the ground up for application
+    development — not "page" development, not "movie" development — and is centered around standard
+    development approaches. OpenLaszlo applications are written in XML files with embedded
+    JavaScript, which provide an ideal foundation for serious developers. OpenLaszlo supports
+    standards-based object-oriented development and data binding, and enables rich interactivity
+    without requiring complex, timeline-based visual authoring.</para>
+
+  <para>The result is applications that are delightful to use. Now, delightfulness is in the eye of
+    the beholder, of course, and that's why we suggest that you right now click on our <ulink
+      url="../../demos/amazon/amazon.lzx">e-commerce</ulink> application. This program communicates
+    with Amazon.com's data servers and allows you to browse their products, create a wish list, fill
+    a shopping cart, and so forth. So in many ways it's just like any other similar e-commerce site.
+    But notice that there are no screen refreshes, and that you can move items by dragging them with
+    the mouse, that it's hard to get "lost." Now consider that this program was written in a few
+    hours using a simple text editor.</para>
+
+  <para>We suggest that you explore the sample applications and demos <ulink
+      url="http://openlaszlo.org/showcase">here</ulink> to get a feel for what a OpenLaszlo
+    application is like. One sometimes hears the phrase "Rich Internet Application" to describe
+    programs like these, and their defining characteristic is that they make people smile. A growing
+    body of empirical studies shows that when people have a more pleasant experience on a website,
+    the longer they stay there, and on commercial sites, the more commerce they transact.</para>
+
+  <section>
+    <title>Audience and Rationale for this Book</title>
+
+    <para>This book is written for software developers who have familiarity with the concepts of
+      object-oriented programming as implemented in languages such as Java, C++, or JavaScript, and
+      with the fundamentals of XML data formats.</para>
+    <para>We also hope that this guide will be accessible to web developers who know HTML and CSS
+      but haven't yet worked with object oriented languages, and to developers and designers
+      familiar with Flash or Flash MX. If this describes you, you may have a little homework to do
+      outside the scope of this book, but in general you should have no trouble becoming a fluent
+      OpenLaszlo developer. A good place for you to start learning would be with the <ulink
+        url="../developers/developers.tutorials.html">tutorials</ulink>.</para>
+
+  </section>
+  <section id="runtimedeploymodes">
+    <title>On Runtimes and Deployment Modes and the "Core" API</title>
+    <para> OpenLaszlo applications can be compiled to run in any of several runtimes, and in either
+      of two deployment modes. Some capabilities are available in only a subset of these use cases.
+      OpenLaszlo's "core" APIs run on all target runtimes, and they get the most attention in this
+        <emphasis>Guide</emphasis>. "Core API" is kind of a loose concept, since there's no formal
+      definition, but what it means is that unless you see indication to the contrary, you can
+      assume that the topic under discussion applies to all runtimes. Similarly the default
+      deployment mode is assumed to be SOLO. </para>
+    <para> Nevertheless, as a developer you have to decide whether to: </para>
+    <orderedlist spacing="compact">
+      <listitem>
+        <para>Optimize for SWF (employ SWF-only APIs)</para>
+      </listitem>
+      <listitem>
+        <para>Optimize for DHTML (employ DHTML-only APIs)</para>
+      </listitem>
+      <listitem>
+        <para>Code to lowest common denominator ("core" APIs only)</para>
+      </listitem>
+      <listitem>
+        <para>Conditionalize (include both. An example would be including comma separated list of
+          embedded and system fonts; when compiled to SWF you get embedded font, to DHTML you get
+          system font).</para>
+      </listitem>
+    </orderedlist>
+    <para>The focus of the <emphasis>OpenLaszlo Application Developer's Guide</emphasis> is (3), the
+      lowest common denominator; runtime-specific APIs and engineering approaches are presented as
+      adjuncts. Graphic devices ("glyphs") call attention to non-core/non-SOLO information.</para>
+    <para> Depending on which approach you're taking, you'll make different engineering decisions
+      and different approaches to reading the <emphasis>Guide</emphasis>. For example, if you're
+      deploying a SOLO-only application, you can just skip all the chapters concerned with Server
+      issues.</para>
+    <para> Finally, this <emphasis>Guide</emphasis> does not address any browser-specific
+      considerations. If a thing does not run on all supported browsers for a given runtime, it's by
+      definition not supported and thus should not be cluttering up our lovely
+      <emphasis>Guide</emphasis>. Nonstandard, browser-specific things are described in the release
+      notes or the <ulink url="http://wiki.openlaszlo.org/Main_Page">OpenLaszo Wiki</ulink>. </para>
+    <section>
+      <title>Learn by Doing</title>
+      <para>This Guide contains hundreds of <emphasis>live</emphasis> examples, that is, OpenLaszlo
+        applications that are embedded in the page. You'll have more fun and get more out of this
+        document if you "play with the code." To do so, click on the <emphasis role="bold"
+          >Flash</emphasis> or <emphasis role="bold"
+            >HTML5</emphasis> button at the bottom left corner of each example. This will cause a new
+        window to pop up that is a self-contained environment for modifying and executing OpenLaszlo
+        applications. Edit the sample code then click <emphasis role="bold">Update</emphasis> and
+        see the results displayed in the right-hand pane of the window. To return the sample code to
+        its initial state, click <emphasis role="bold">Reset</emphasis>. </para>
+    </section>
+    <section>
+      <title>Sequential and Random Access</title>
+      <para>This <emphasis>Guide</emphasis> is intended for both sequential and random access. In
+        general, each chapter draws on the concepts covered in the chapters that precede it, but not
+        (too much) on those in the chapters that follow it. If you start with Chapter One and read
+        to the end, you won't get lost.</para>
+      <para> At the same time, each chapter is designed to be encyclopedic: the chapter on Animation
+        covers the entire subject of animation, and so forth.</para>
+      <para> Short, self-contained examples appear throughout.</para>
+    </section>
+  </section>
+  <section>
+    <title>Typographic Conventions</title>
+    <para>Code is displayed like this: <literal>var a = f(2)</literal>. Tags, method names, and
+      attributes are displayed like this: <literal>&lt;canvas&gt;</literal>. Longer sections
+      of code and other verbatim information is displayed in a separate paragraph:</para>
+    <programlisting>
+An example file
+that spans several
+lines
+</programlisting>
+
+    <para>Example programs are shown like this:</para>
+    <informalexample role="live-example">
+      <programlisting>&lt;canvas height="20"&gt;
+  &lt;text&gt;Hello World!&lt;/text&gt;
+&lt;/canvas&gt;</programlisting>
+    </informalexample>
+
+    <para>Some example programs are <emphasis>live</emphasis>. The running application is shown
+      first, followed by the application source code, followed by buttons that allow you to try out
+      the effect of making changes to the application source code.</para>
+    <informalexample role="live-example">
+      <programlisting language="lzx">
+    <textobject><textdata fileref="programs/developers_guide_preface-$2.lzx"/></textobject>
+  </programlisting>
+    </informalexample>
+
+  </section>
+  <section>
+    <title>Related Documentation</title>
+
+    <para>In addition to this <emphasis>OpenLaszlo Application Developer's Guide</emphasis>, please
+      see also</para>
+    <itemizedlist spacing="compact">
+      <listitem>
+        <para>The <ulink url="../reference">
+            <emphasis>OpenLaszlo Reference Guide</emphasis>
+          </ulink>. This online, hyperlinked, comprehensive reference for OpenLaszlo contains
+          entries for each LZX tag and API. Its format will be familiar to users of JavaDoc(tm) and
+          similar systems. </para>
+      </listitem>
+      <listitem>
+        <para>The <ulink url="../developers/developers.tutorials.html">Tutorial Introduction</ulink>
+          provides a hands-on instructional overview of the LZX language.</para>
+      </listitem>
+    </itemizedlist>
+
+  </section>
+  <section>
+    <title>Suggested Reading Paths</title>
+
+    <para>The best way to use the <emphasis>OpenLaszlo Application Developer's Guide</emphasis>
+      depends on your experience.</para>
+
+    <para><emphasis>Experienced Object-Oriented programmers</emphasis>: We suggest that you start by
+      reading Chapters 1, 2 and 4 of this Guide. If you have never worked with JavaScript, you can
+      learn the basics at the <ulink url="https://developer.mozilla.org/en/JavaScript">MDN Doc
+        Center</ulink>. Then visit the <ulink url="http://www.openlaszlo.org">OpenLaszlo</ulink>
+      website and play around with the tutorials and sample programs; as you read the sample code be
+      sure to look up appropriate entries in the <ulink url="../reference">Reference Manual</ulink>.
+      At that point you'll know what further reading you need to do in this guide.</para>
+    <para><emphasis>Web/Flash developers with no Object-Oriented experience:</emphasis> We suggest
+      that you start with the <ulink url="../developers/developers.tutorials.html">tutorials</ulink>
+      in order to get a general feel for OpenLaszlo programming. Don't worry about mastering the
+      subjects they cover; your goal is to begin to get comfortable with the language.</para>
+
+    <para>If you need to, learn the basics of <ulink url="http://www.w3.org/XML/">XML</ulink>.</para>
+    <para>Then read <xref linkend="program-development"/>.</para>
+
+    <section>
+      <title>Use the Forums</title>
+
+      <para>The best way to learn any programming language is to draw upon the experience and
+        goodwill of its development community (and to write code! As the saying goes, nobody learned
+        to ride a bicycle by reading about it). The OpenLaszlo developer community has a home <ulink
+          url="http://openlaszlo.org/taxonomy/term/17">here</ulink>, where you will find an active
+        discussion of all aspects of the language, and a place to ask questions of your own.</para>
+    </section>
+  </section>
+</section>

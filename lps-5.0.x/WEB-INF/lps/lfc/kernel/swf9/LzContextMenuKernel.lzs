@@ -1,0 +1,211 @@
+/**
+  *
+  * @copyright Copyright 2001-2009, 2011 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  *
+  * @access public
+  * @affects lzcontextmenukernel
+  * @topic LFC
+  * @subtopic Views
+  */
+
+/**
+  * @access private
+  */
+class LzContextMenuKernel {
+
+    #passthrough (toplevel:true) {
+    import flash.events.ContextMenuEvent;
+    import flash.ui.ContextMenu;
+    import flash.ui.ContextMenuBuiltInItems;
+    import flash.display.InteractiveObject;
+    }#
+
+function LzContextMenuKernel (newowner:LzContextMenu) {
+    this.owner = newowner;
+
+    this.cm = new ContextMenu();
+    this.cm.hideBuiltInItems();
+    this.cm.addEventListener(ContextMenuEvent.MENU_SELECT, handleMenuSelect);
+    LzMouseKernel.createdContextMenu(this.cm); // handle quirks
+}
+
+var owner:LzContextMenu = null;
+var cm:ContextMenu = null;
+var delegate:LzDelegate = null;
+
+private function handleMenuSelect (e:ContextMenuEvent) :void {
+    if (LzMouseKernel.__lastMouseDown) {
+        // The left-mouse is also down. Handle this like you would if the
+        // mouse when up outside the view. (LPP-10061)
+        LzMouseKernel.__mouseUpOutsideHandler();
+    }
+    var lzmenu:LzContextMenu = this.owner;
+    var delegate:LzDelegate = this.delegate;
+    if (delegate != null) {
+        delegate.execute(lzmenu);
+    }
+
+    if (lzmenu.onmenuopen.ready) lzmenu.onmenuopen.sendEvent(lzmenu);
+
+    // Tip o' the pin to <andre.bargull@udo.edu>!
+    var iobj:InteractiveObject = e.mouseTarget;
+    // extra while-loop for nested objects like resources etc.
+    while (iobj != null && ! (iobj is LzSprite)) {
+      iobj = iobj.parent;
+    }
+    var view:LzView = iobj ? (iobj cast LzSprite).owner : null;
+    // Always rebuild the menu from the owner.  This allows the owner
+    // to dynamically build and/or re-order the menu based on the
+    // current state.
+    var items = lzmenu._filteredItems(view);
+    var kernelitems = [];
+    for (var i = 0; i < items.length; i++) {
+      kernelitems.push(items[i].kernel.cmenuitem);
+    }
+    this.cm.customItems = kernelitems;
+}
+
+/**
+  * LzContextMenu.setDelegate
+  * Sets the delegate which will be called when the menu is opened
+  * @param LzDelegate delegate: delegate which is executed when item is selected. An
+  * onmenuopen event is also sent.
+  * 
+  * @access private
+  */
+function setDelegate (delegate:LzDelegate) :void {
+    this.delegate = delegate;
+}
+
+/**
+  * LzContextMenu.hideBuiltInItems
+  * @access private
+  */
+function hideBuiltInItems () :void {
+    this.cm.hideBuiltInItems();
+}
+
+/**
+  * LzContextMenu.showBuiltInItems
+  * @access private
+  */
+function showBuiltInItems () :void {
+    var builtins:ContextMenuBuiltInItems = this.cm.builtInItems;
+    // display only 'useful' items in respect of a RIA!
+    builtins.print = true;
+    builtins.quality = true;
+    builtins.zoom = true;
+}
+
+/**
+  * ContextMenu.__LZcontextMenu
+  * Returns Flash ContextMenu object
+  * @access private
+  */
+function __LZcontextMenu () :ContextMenu {
+   return this.cm;
+}
+
+}; // End of LzContextMenuKernel
+
+
+
+/**
+  * @access private
+  */
+class LzContextMenuItemKernel {
+
+    #passthrough (toplevel:true) {
+    import flash.events.ContextMenuEvent;
+    import flash.ui.ContextMenuItem;
+    }#
+
+function LzContextMenuItemKernel (newowner:LzContextMenuItem, title:String, del:*) {
+    this.owner = newowner;
+    this.cmenuitem = new ContextMenuItem(title);
+    this.cmenuitem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, this.handleMenuItemSelect);
+    this.setDelegate(del);
+}
+
+var owner:LzContextMenuItem = null;
+var cmenuitem:ContextMenuItem = null;
+var delegate:* = null;
+
+private function handleMenuItemSelect (e:ContextMenuEvent) :void {
+    var lzmenuitem:LzContextMenuItem = this.owner;
+    var delegate:* = this.delegate;
+    if (delegate != null) {
+        if (delegate is Function) {
+            delegate();
+        } else if (delegate is LzDelegate) {
+            delegate.execute(lzmenuitem);
+        } else if ($debug) {
+            Debug.error("LzContextMenuItem.setDelegate must be passed a delegate or function", lzmenuitem, delegate);
+        }
+    }
+    if (lzmenuitem.onselect.ready) lzmenuitem.onselect.sendEvent(lzmenuitem);
+}
+
+/**
+  * LzContextMenuItem.setDelegate
+  * Sets the delegate which will be called when the menu item is selected
+  * @param LzDelegate delegate: delegate which is executed when item is 
+  * selected. An onselect event is also sent.
+  * 
+  * @access private
+  */
+function setDelegate (delegate:*) :void {
+    this.delegate = delegate;
+}
+
+/**
+  * LzContextMenuItem.setCaption
+  * Sets the text string which is displayed for the menu item
+  * @param String caption: text string to display
+  * @access public
+  */
+function setCaption (caption:String) :void {
+    this.cmenuitem.caption = caption;
+}
+
+/**
+  * LzContextMenuItem.getCaption
+  * Gets the text string which is displayed for the menu item
+  * @access public
+  */
+function getCaption () :String {
+    return this.cmenuitem.caption;
+}
+
+/**
+  * LzContextMenuItem.setEnabled
+  * @param boolean val: if false, menu item is grayed out and will not respond to clicks
+  * @access public
+  */
+function setEnabled (val:Boolean) :void {
+    this.cmenuitem.enabled = val;
+}
+
+/**
+  * LzContextMenuItem.separatorBefore
+  * Draw a horizontal separator line before this item in the menu
+  * @param boolean val: sets visibility of separator line
+  * @access public
+  */
+
+function setSeparatorBefore (val:Boolean) :void {
+    this.cmenuitem.separatorBefore = val;
+}
+
+/**
+  * LzContextMenuItem.setVisible
+  * Sets the visibility of the menu item
+  * @param boolean val: sets visibility
+  * @access public
+  */
+function setVisible (val:Boolean) :void {
+    this.cmenuitem.visible = val;
+}
+
+}; // End of LzContextMenuItemKernel

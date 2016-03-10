@@ -1,0 +1,44 @@
+/**
+  * Library.lzs
+  *
+  * @copyright Copyright 2001-2011 Laszlo Systems, Inc.  All Rights Reserved.
+  *            Use is subject to license terms.
+  *
+  * @topic Kernel
+  * @subtopic swf9
+  */
+
+// A class for loading and executing debug code at runtime
+#include "kernel/swf9/LFCApplication.as"
+#include "kernel/swf9/LZOApplication.as"
+#include "kernel/swf9/LzIdleKernel.as"
+#include "kernel/swf9/LzSprite.as"
+#include "kernel/swf9/LzTextSprite.as"
+#include "kernel/swf9/LzInputTextSprite.as"
+
+// bidrectional text support
+#include "kernel/swf9/LzTextContainerManager.as"
+#include "kernel/swf9/LzTLFTextFieldHostFormat.as"
+#include "kernel/swf9/LzTLFTextFieldStyleResolver.as"
+#include "kernel/swf9/LzTLFTextField.as"
+#include "kernel/swf9/LzEditManager.as"
+
+#include "kernel/swf9/LzFontManager.as"
+#include "kernel/swf9/LzTimeKernel.as"
+
+#include "kernel/swf9/LzLibrary.as"
+#include "kernel/swf9/LzXMLParser.as"
+#include "kernel/swf9/LzXMLTranslator.as"
+#include "kernel/swf9/LzHTTPLoader.as"
+
+#include "kernel/swf9/LzMouseKernel.as"
+#include "kernel/swf9/LzBrowserKernel.lzs"
+#include "kernel/swf9/LzKeyboardKernel.as"
+
+#include "kernel/swf9/LzScreenKernel.as"
+#include "kernel/swf9/LzContextMenuKernel.lzs"
+#include "kernel/swf9/LzAudioKernel.lzs"
+#include "kernel/swf9/LzAsset.as"
+#include "kernel/swf9/DojoExternalInterface.as"
+
+
